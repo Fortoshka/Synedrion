@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Настройки</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container settings-cont">
+        <div class="settings-header">
+            <h1>Настройки</h1>
+        </div>
+
+        <div class="settings-container">
+            <!-- Полноэкранный режим -->
+            <div class="setting-section">
+                <h2>Общие настройки (нужен перезапуск!)</h2>
+                <div class="setting-item">
+                    <label class="switch">
+                        <input type="checkbox" id="fullscreen-toggle">
+                        <span class="slider"></span>
+                    </label>
+                    <span class="setting-label">Полноэкранный режим</span>
+                </div>
+            </div>
+
+            <!-- Темы -->
+            <div class="setting-section">
+                <h2>Тема приложения</h2>
+                <div class="theme-selector">
+                    <div class="theme-option active" data-theme="blue">
+                        <div class="theme-preview blue-theme"></div>
+                        <span>Стандартная</span>
+                    </div>
+                    <div class="theme-option" data-theme="dark">
+                        <div class="theme-preview dark-theme"></div>
+                        <span>Темная</span>
+                    </div>
+                    <div class="theme-option" data-theme="light">
+                        <div class="theme-preview light-theme"></div>
+                        <span>Светлая</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Модели ИИ -->
+            <div class="setting-section">
+                <h2>Модели ИИ</h2>
+                <div class="models-container" id="models-container">
+                    <!-- Существующие модели будут добавлены здесь через JavaScript -->
+                </div>
+                
+                <div class="add-model-section">
+                    <h3>Добавить новую модель</h3>
+                    <div class="model-input-group">
+                        <input type="text" id="model-name" placeholder="Название модели">
+                        <input type="text" id="model-url" placeholder="Ссылка на API модели">
+                        <button id="add-model-btn" class="btn secondary-btn small-btn">
+                            <span class="btn-text">Добавить модель</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Кнопки действий -->
+            <div class="settings-actions">
+                <button id="save-settings" class="btn primary-btn small-btn">
+                    <span class="btn-text">Сохранить настройки</span>
+                </button>
+                <a href="/" class="btn secondary-btn small-btn nav-link">
+                    <span class="btn-text">← Назад</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/settings.js') }}"></script>
+</body>
+</html>

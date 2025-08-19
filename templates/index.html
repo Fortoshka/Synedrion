@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Chat Interface</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="welcome-section">
+            <h1 id="greeting" class="greeting"></h1>
+            <p class="subtitle">Мы ещё в разработке, не пугайтесь багов!</p>
+        </div>
+
+        <div class="buttons-container">
+            <a href="/single_chat" class="btn primary-btn nav-link">
+                <span class="btn-icon">👋</span>
+                <span class="btn-text">Одиночные чаты</span>
+            </a>
+            
+            <a href="/council" class="btn primary-btn nav-link">
+                <span class="btn-icon">🫸🫷</span>
+                <span class="btn-text">Консилиумы</span>
+            </a>
+            
+            <a href="/settings" class="btn secondary-btn nav-link">
+                <span class="btn-icon">⚙️</span>
+                <span class="btn-text">Настройки</span>
+            </a>
+            
+            <a href="/about" class="btn secondary-btn nav-link">
+                <span class="btn-icon">❓</span>
+                <span class="btn-text">О приложении</span>
+            </a>
+        </div>
+
+        <!-- Кнопка выхода -->
+        <div class="exit-section" style="margin-top: 2rem;">
+            <button id="exit-btn" class="btn exit-btn small-btn">
+                <span class="btn-text">Выйти из приложения</span>
+            </button>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

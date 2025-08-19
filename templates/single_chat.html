@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Одиночный чат - AI Chat Interface</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/chat.css') }}">
+</head>
+<body>
+    <div class="chat-container">
+        <!-- Боковая панель с чатами -->
+        <div class="sidebar" id="chat-sidebar">
+            <div class="sidebar-header">
+                <h2>Чаты</h2>
+                <button id="new-chat-btn" class="btn primary-btn small-btn">
+                    <span class="btn-text">+ Новый чат</span>
+                </button>
+            </div>
+            <div class="chats-list" id="chats-list">
+                <!-- Список чатов будет загружен сюда -->
+                <div class="loading-placeholder">Загрузка чатов...</div>
+            </div>
+            
+            <!-- Кнопка выхода -->
+            <div class="sidebar-footer">
+                <a href="/" class="btn secondary-btn small-btn">
+                    <span class="btn-text">← Назад</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Основная область чата -->
+        <div class="main-content">
+            <div class="chat-header">
+                <button id="toggle-sidebar" class="menu-btn">☰</button>
+                <h1 id="current-chat-title">Выберите или создайте чат</h1>
+            </div>
+            
+            <div class="chat-messages" id="chat-messages">
+                <div class="welcome-message">
+                    <p>Добро пожаловать в чат с ИИ!</p>
+                    <p>Выберите существующий чат или создайте новый.</p>
+                </div>
+            </div>
+            
+            <div class="chat-input-area">
+                <div class="input-container">
+                    <textarea 
+                        id="message-input" 
+                        placeholder="Введите ваше сообщение..." 
+                        rows="1"
+                        disabled
+                    ></textarea>
+                    <button id="send-message-btn" class="btn primary-btn small-btn" disabled>
+                        <span class="btn-text">Отправить</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно для создания нового чата -->
+    <div id="new-chat-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Создать новый чат</h2>
+                <span class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="chat-title">Название чата:</label>
+                    <input type="text" id="chat-title" placeholder="Введите название чата" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="chat-model">Выберите модель ИИ:</label>
+                    <select id="chat-model" required>
+                        <option value="">Загрузка моделей...</option>
+                    </select>
+                </div>
+                
+                <div class="modal-actions">
+                    <button id="create-chat-confirm" class="btn primary-btn small-btn">
+                        <span class="btn-text">Создать чат</span>
+                    </button>
+                    <button id="cancel-create-chat" class="btn secondary-btn small-btn">
+                        <span class="btn-text">Отмена</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "fullscreen": false,
+  "models": [
+    {
+      "id": 1,
+      "name": "Qwen: Qwen3 Coder",
+      "url": "qwen/qwen3-coder:free"
+    },
+    {
+      "id": 2,
+      "name": "Deepseek: Deepseek R1 0528 Qwen3 8B",
+      "url": "deepseek/deepseek-r1-0528-qwen3-8b:free"
+    }
+  ],
+  "theme": "blue"
+}

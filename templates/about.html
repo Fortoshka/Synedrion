@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>О приложении - AI Chat Interface</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="about-header">
+            <h1>О приложении</h1>
+        </div>
+
+        <div class="about-content">
+            <!-- Основная информация -->
+            <div class="info-section">
+                <div class="app-info-card">
+                    <div class="app-icon">🤖</div>
+                    <div class="app-details">
+                        <h2 class="app-name">Synedrion</h2>
+                        <p class="app-version">Версия: 0.0.1 build 1708</p>
+                        <p class="app-description">
+                            Приложение для удобного взаимодействия с различными ИИ моделями через единый интерфейс.
+                            Поддерживает как одиночные чаты, так и групповые обсуждения с несколькими моделями одновременно.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Лицензия -->
+            <div class="info-section">
+                <h3>Лицензия</h3>
+                <div class="license-info">
+                    <p><strong>Тип лицензии:</strong> MIT License</p>
+                    <p><strong>Статус:</strong> Открытое программное обеспечение</p>
+                    <div class="license-text">
+                        <p>Данное программное обеспечение предоставляется по принципу "как есть", без каких-либо гарантий.</p>
+                        <p>Вы можете свободно использовать, копировать, изменять и распространять это программное обеспечение.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Контакты для баг-репортов -->
+            <div class="info-section">
+                <h3>Сообщить о проблеме</h3>
+                <div class="contact-info">
+                    <p>Если вы нашли ошибку или у вас есть предложения по улучшению, пожалуйста, свяжитесь с нами:</p>
+                    
+                    <div class="contact-method">
+                        <div class="contact-icon">📧</div>
+                        <div class="contact-details">
+                            <h4>Email</h4>
+                            <p>*Скоро будет добавлен*</p>
+                        </div>
+                    </div>
+                    
+                    <div class="contact-method">
+                        <div class="contact-icon">🐙</div>
+                        <div class="contact-details">
+                            <h4>GitHub Issues</h4>
+                            <p>https://github.com/Fortoshka/Synedrion/issues</p>
+                        </div>
+                    </div>
+                    
+                    <div class="contact-method">
+                        <div class="contact-icon">💬</div>
+                        <div class="contact-details">
+                            <h4>Telegram</h4>
+                            <p>@Max_Kuzya</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Кнопка возврата -->
+            <div class="back-button-container">
+                <a href="/" class="btn secondary-btn nav-link small-btn">
+                    <span class="btn-text">← Назад</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
