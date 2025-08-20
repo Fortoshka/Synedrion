@@ -80,11 +80,80 @@
                     </select>
                 </div>
                 
+                <div class="form-group">
+                    <label for="system-prompt">Системный промпт (необязательно):</label>
+                    <textarea id="system-prompt" placeholder="Введите системный промпт для ИИ..." rows="3"></textarea>
+                </div>
+                
                 <div class="modal-actions">
                     <button id="create-chat-confirm" class="btn primary-btn small-btn">
                         <span class="btn-text">Создать чат</span>
                     </button>
                     <button id="cancel-create-chat" class="btn secondary-btn small-btn">
+                        <span class="btn-text">Отмена</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно для настроек чата -->
+    <div id="chat-settings-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Настройки чата</h2>
+                <span class="close-settings-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="settings-chat-id">
+                
+                <div class="form-group">
+                    <label for="settings-chat-title">Название чата:</label>
+                    <input type="text" id="settings-chat-title" placeholder="Введите название чата" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="settings-chat-model">Модель ИИ:</label>
+                    <select id="settings-chat-model" required>
+                        <option value="">Загрузка моделей...</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="settings-system-prompt">Системный промпт:</label>
+                    <textarea id="settings-system-prompt" placeholder="Введите системный промпт для ИИ..." rows="3"></textarea>
+                </div>
+                
+                <div class="modal-actions">
+                    <button id="delete-chat-btn" class="btn danger-btn small-btn">
+                        <span class="btn-text">Удалить чат</span>
+                    </button>
+                    <div style="flex: 1;"></div>
+                    <button id="save-chat-settings" class="btn primary-btn small-btn">
+                        <span class="btn-text">Сохранить</span>
+                    </button>
+                    <button id="cancel-chat-settings" class="btn secondary-btn small-btn">
+                        <span class="btn-text">Отмена</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно для подтверждения удаления чата -->
+    <div id="delete-confirm-modal" class="modal">
+        <div class="modal-content confirm-modal">
+            <div class="modal-header">
+                <h2>Подтверждение удаления</h2>
+                <span class="close-delete-confirm">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p>Вы уверены, что хотите удалить этот чат? Это действие нельзя отменить.</p>
+                <div class="modal-actions">
+                    <button id="confirm-delete-btn" class="btn danger-btn small-btn">
+                        <span class="btn-text">Удалить</span>
+                    </button>
+                    <button id="cancel-delete-btn" class="btn secondary-btn small-btn">
                         <span class="btn-text">Отмена</span>
                     </button>
                 </div>

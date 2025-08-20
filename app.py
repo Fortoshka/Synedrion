@@ -187,6 +187,7 @@ def create_new_chat():
         data = request.get_json()
         title = data.get('title', 'Новый чат')
         model = data.get('model', '')  # Получаем выбранную модель
+        system_prompt = data.get('system_prompt', '')  # Получаем системный промпт
         
         # Генерируем уникальный ID для чата
         chat_id = str(uuid.uuid4())
@@ -197,6 +198,7 @@ def create_new_chat():
             'id': chat_id,
             'title': title,
             'model': model,  # Сохраняем выбранную модель
+            'system_prompt': system_prompt if system_prompt else None,  # Сохраняем системный промпт
             'created_at': datetime.now().isoformat(),
             'updated_at': datetime.now().isoformat(),
             'messages': []

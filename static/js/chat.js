@@ -1,4 +1,4 @@
-// static/js/chat.js - дополнения и изменения
+// static/js/chat.js - дополнения
 
 class SingleChat {
     constructor() {
@@ -32,8 +32,11 @@ class SingleChat {
         
         document.getElementById('message-input').addEventListener('input', this.autoResizeTextarea);
         
-        // Обработчики для модального окна
-        this.setupModalHandlers();
+        // Обработчики для модального окна создания чата
+        this.setupCreateModalHandlers();
+        
+        // Обработчики для модального окна настроек чата
+        this.setupSettingsModalHandlers();
         
         // Обработчик для кнопки меню на мобильных устройствах
         const toggleButton = document.getElementById('toggle-sidebar');
@@ -58,8 +61,8 @@ class SingleChat {
         });
     }
 
-    // Настройка обработчиков модального окна
-    setupModalHandlers() {
+    // Настройка обработчиков модального окна создания чата
+    setupCreateModalHandlers() {
         const modal = document.getElementById('new-chat-modal');
         const closeBtn = document.querySelector('.close-modal');
         const cancelBtn = document.getElementById('cancel-create-chat');
@@ -94,14 +97,175 @@ class SingleChat {
         });
     }
 
+    // Настройка обработчиков модального окна настроек чата
+    setupSettingsModalHandlers() {
+        const modal = document.getElementById('chat-settings-modal');
+        const closeBtn = document.querySelector('.close-settings-modal');
+        const cancelBtn = document.getElementById('cancel-chat-settings');
+        const saveBtn = document.getElementById('save-chat-settings');
+        const deleteBtn = document.getElementById('delete-chat-btn'); // Кнопка удаления
+        
+        // Закрытие модального окна
+        const closeModal = () => {
+            modal.style.display = 'none';
+        };
+        
+        // Обработчики для закрытия
+        closeBtn.addEventListener('click', closeModal);
+        cancelBtn.addEventListener('click', closeModal);
+        
+        // Сохранение настроек чата
+        saveBtn.addEventListener('click', () => {
+            this.saveChatSettings();
+        });
+        
+        // Удаление чата (добавляем обработчик клика)
+        deleteBtn.addEventListener('click', () => {
+            this.deleteChat(); // Вызываем функцию удаления
+        });
+        
+        // Закрытие при клике вне модального окна
+        window.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeModal();
+            }
+        });
+        
+        // Закрытие по Escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && modal.style.display === 'block') {
+                closeModal();
+            }
+        });
+    }
+
+    // Функция удаления чата (НОВАЯ функция)
+    async deleteChat() {
+        // Открываем модальное окно подтверждения вместо стандартного confirm
+        this.openDeleteConfirmModal();
+    }
+
+    // Открытие модального окна подтверждения удаления
+    openDeleteConfirmModal() {
+        const modal = document.getElementById('delete-confirm-modal');
+        const closeBtn = document.querySelector('.close-delete-confirm');
+        const confirmBtn = document.getElementById('confirm-delete-btn');
+        const cancelBtn = document.getElementById('cancel-delete-btn');
+        
+        // Показываем модальное окно
+        modal.style.display = 'block';
+        
+        // Функция закрытия модального окна
+        const closeModal = () => {
+            modal.style.display = 'none';
+        };
+        
+        // Обработчики событий
+        closeBtn.onclick = closeModal;
+        cancelBtn.onclick = closeModal;
+        
+        // Подтверждение удаления
+        confirmBtn.onclick = () => {
+            this.confirmDeleteChat();
+            closeModal();
+        };
+        
+        // Закрытие при клике вне модального окна
+        window.onclick = (event) => {
+            if (event.target === modal) {
+                closeModal();
+            }
+        };
+        
+        // Закрытие по Escape
+        const handleEscape = (e) => {
+            if (e.key === 'Escape' && modal.style.display === 'block') {
+                closeModal();
+                document.removeEventListener('keydown', handleEscape);
+            }
+        };
+        document.addEventListener('keydown', handleEscape);
+    }
+
+    // Подтверждение удаления чата
+    async confirmDeleteChat() {
+        const chatIdInput = document.getElementById('settings-chat-id');
+        const chatId = chatIdInput.value;
+        
+        try {
+            const response = await fetch(`/api/chats/${chatId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+            
+            if (response.ok) {
+                // Если это текущий активный чат, очищаем его
+                if (this.currentChatId === chatId) {
+                    this.clearChat();
+                }
+                
+                // Обновляем список чатов
+                this.loadChatsList();
+                
+                // Закрываем модальное окно настроек
+                document.getElementById('chat-settings-modal').style.display = 'none';
+                
+                // Показываем уведомление
+                this.showNotification('Чат успешно удален', 'success');
+            } else {
+                const result = await response.json();
+                console.error('Ошибка удаления чата:', result.error);
+                this.showNotification('Ошибка удаления чата: ' + result.error, 'error');
+            }
+        } catch (error) {
+            console.error('Ошибка подключения:', error);
+            this.showNotification('Ошибка подключения к серверу', 'error');
+        }
+    }
+
+    // Показ уведомлений
+    showNotification(message, type = 'info') {
+        // Создаем элемент уведомления
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.innerHTML = `
+            <div style="
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: ${type === 'error' ? 'rgba(239, 68, 68, 0.9)' : 
+                             type === 'success' ? 'rgba(16, 185, 129, 0.9)' : 
+                             'rgba(59, 130, 246, 0.9)'};
+                color: white;
+                padding: 1rem 1.5rem;
+                border-radius: 12px;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+                z-index: 1000;
+                animation: slideInRight 0.3s ease;
+            ">
+                ${message}
+            </div>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.remove();
+        }, 3000);
+    }
+
     // Открытие модального окна создания чата
     async openNewChatModal() {
         const modal = document.getElementById('new-chat-modal');
         const modelSelect = document.getElementById('chat-model');
         const titleInput = document.getElementById('chat-title');
+        const systemPromptInput = document.getElementById('system-prompt');
         
         // Очищаем поля
         titleInput.value = '';
+        systemPromptInput.value = '';
         modelSelect.innerHTML = '<option value="">Загрузка моделей...</option>';
         
         // Загружаем список моделей
@@ -143,9 +307,11 @@ class SingleChat {
     async createChatFromModal() {
         const titleInput = document.getElementById('chat-title');
         const modelSelect = document.getElementById('chat-model');
+        const systemPromptInput = document.getElementById('system-prompt');
         
         const title = titleInput.value.trim();
         const modelUrl = modelSelect.value;
+        const systemPrompt = systemPromptInput.value.trim();
         
         if (!title) {
             alert('Пожалуйста, введите название чата');
@@ -166,7 +332,8 @@ class SingleChat {
                 },
                 body: JSON.stringify({
                     title: title,
-                    model: modelUrl // Сохраняем выбранную модель
+                    model: modelUrl,
+                    system_prompt: systemPrompt || undefined // Не добавляем, если пустой
                 })
             });
             
@@ -185,6 +352,125 @@ class SingleChat {
             } else {
                 console.error('Ошибка создания чата');
                 alert('Ошибка создания чата');
+            }
+        } catch (error) {
+            console.error('Ошибка подключения:', error);
+            alert('Ошибка подключения к серверу');
+        }
+    }
+
+    // Открытие модального окна настроек чата
+    async openChatSettings(chatId) {
+        const modal = document.getElementById('chat-settings-modal');
+        const chatIdInput = document.getElementById('settings-chat-id');
+        const titleInput = document.getElementById('settings-chat-title');
+        const modelSelect = document.getElementById('settings-chat-model');
+        const systemPromptInput = document.getElementById('settings-system-prompt');
+        
+        // Загружаем данные чата
+        try {
+            const response = await fetch(`/api/chats/${chatId}`);
+            if (response.ok) {
+                const chatData = await response.json();
+                
+                // Заполняем поля данными чата
+                chatIdInput.value = chatData.id;
+                titleInput.value = chatData.title || '';
+                systemPromptInput.value = chatData.system_prompt || '';
+                
+                // Загружаем список моделей
+                const settingsResponse = await fetch('/api/settings');
+                if (settingsResponse.ok) {
+                    const settings = await settingsResponse.json();
+                    const models = settings.models || [];
+                    
+                    modelSelect.innerHTML = '';
+                    models.forEach(model => {
+                        const option = document.createElement('option');
+                        option.value = model.url;
+                        option.textContent = model.name;
+                        if (model.url === chatData.model) {
+                            option.selected = true;
+                        }
+                        modelSelect.appendChild(option);
+                    });
+                }
+                
+                // Показываем модальное окно
+                modal.style.display = 'block';
+            } else {
+                console.error('Ошибка загрузки данных чата');
+                alert('Ошибка загрузки данных чата');
+            }
+        } catch (error) {
+            console.error('Ошибка подключения:', error);
+            alert('Ошибка подключения к серверу');
+        }
+    }
+
+    // Сохранение настроек чата
+    async saveChatSettings() {
+        const chatIdInput = document.getElementById('settings-chat-id');
+        const titleInput = document.getElementById('settings-chat-title');
+        const modelSelect = document.getElementById('settings-chat-model');
+        const systemPromptInput = document.getElementById('settings-system-prompt');
+        
+        const chatId = chatIdInput.value;
+        const title = titleInput.value.trim();
+        const modelUrl = modelSelect.value;
+        const systemPrompt = systemPromptInput.value.trim();
+        
+        if (!title) {
+            alert('Пожалуйста, введите название чата');
+            return;
+        }
+        
+        if (!modelUrl) {
+            alert('Пожалуйста, выберите модель ИИ');
+            return;
+        }
+        
+        try {
+            // Загружаем текущие данные чата
+            const response = await fetch(`/api/chats/${chatId}`);
+            if (response.ok) {
+                const chatData = await response.json();
+                
+                // Обновляем данные
+                chatData.title = title;
+                chatData.model = modelUrl;
+                chatData.system_prompt = systemPrompt || undefined; // Не добавляем, если пустой
+                
+                // Сохраняем обновленные данные
+                const updateResponse = await fetch(`/api/chats/${chatId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(chatData)
+                });
+                
+                if (updateResponse.ok) {
+                    // Обновляем UI
+                    if (this.currentChatId === chatId) {
+                        this.currentChatData = chatData;
+                        const titleElement = document.getElementById('current-chat-title');
+                        if (titleElement) {
+                            titleElement.textContent = title;
+                        }
+                    }
+                    
+                    this.loadChatsList();
+                    
+                    // Закрываем модальное окно
+                    document.getElementById('chat-settings-modal').style.display = 'none';
+                } else {
+                    console.error('Ошибка сохранения настроек чата');
+                    alert('Ошибка сохранения настроек чата');
+                }
+            } else {
+                console.error('Ошибка загрузки данных чата');
+                alert('Ошибка загрузки данных чата');
             }
         } catch (error) {
             console.error('Ошибка подключения:', error);
@@ -235,49 +521,39 @@ class SingleChat {
             });
             
             chatElement.innerHTML = `
-                <div class="chat-item-title">${chat.title}</div>
-                <div class="chat-item-date">${formattedDate}</div>
+                <div class="chat-item-header">
+                    <div class="chat-item-info">
+                        <div class="chat-item-title">${chat.title}</div>
+                        <div class="chat-item-date">${formattedDate}</div>
+                    </div>
+                    <button class="chat-item-settings" data-chat-id="${chat.id}"><div>⚙️</div></button>
+                </div>
             `;
             
-            chatElement.addEventListener('click', () => {
-                this.loadChat(chat.id);
-                if (window.innerWidth <= 768) {
-                    document.getElementById('chat-sidebar').classList.remove('open');
+            chatElement.addEventListener('click', (e) => {
+                // Проверяем, что клик был не по кнопке настроек
+                if (!e.target.classList.contains('chat-item-settings')) {
+                    this.loadChat(chat.id);
+                    if (window.innerWidth <= 768) {
+                        document.getElementById('chat-sidebar').classList.remove('open');
+                    }
                 }
+            });
+            
+            // Добавляем обработчик для кнопки настроек
+            const settingsBtn = chatElement.querySelector('.chat-item-settings');
+            settingsBtn.addEventListener('click', (e) => {
+                e.stopPropagation(); // Предотвращаем всплытие события
+                this.openChatSettings(chat.id);
             });
             
             chatsListElement.appendChild(chatElement);
         });
     }
 
-    // Создание нового чата (старый метод - оставляем для совместимости)
-    async createNewChat() {
-        try {
-            const response = await fetch('/api/chats', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    title: 'Новый чат'
-                })
-            });
-            
-            if (response.ok) {
-                const newChat = await response.json();
-                this.loadChat(newChat.id);
-                this.loadChatsList();
-                
-                if (window.innerWidth <= 768) {
-                    document.getElementById('chat-sidebar').classList.remove('open');
-                }
-            } else {
-                console.error('Ошибка создания чата');
-            }
-        } catch (error) {
-            console.error('Ошибка подключения:', error);
-        }
-    }
+    // Остальные методы остаются без изменений...
+    // (loadChat, startPolling, stopPolling, checkForUpdates, renderChat, clearChat, 
+    // addMessageToChat, sendMessage, sendToAI, saveChat, autoResizeTextarea, escapeHtml, destroy)
 
     // Загрузка конкретного чата
     async loadChat(chatId) {

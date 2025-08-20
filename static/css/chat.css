@@ -524,3 +524,133 @@
     scrollbar-width: thin;
     scrollbar-color: rgba(255, 255, 255, 0.3) rgba(255, 255, 255, 0.05);
 }
+
+.chat-item-settings {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 5px;
+    transition: all 0.2s ease;
+    margin-left: 5px;
+}
+
+.chat-item-settings div {
+    font-size: 1.2rem;
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.chat-item-settings:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: var(--text-color);
+}
+
+.chat-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.chat-item-info {
+    flex: 1;
+}
+
+/* Стили для textarea в модальных окнах */
+.form-group textarea {
+    width: 100%;
+    padding: 12px 15px;
+    border-radius: 12px;
+    border: 1px solid var(--card-border);
+    background: rgba(255, 255, 255, 0.15);
+    color: var(--text-color);
+    font-size: 1rem;
+    font-family: inherit;
+    font-weight: inherit;
+    resize: vertical;
+    min-height: 80px;
+}
+
+.form-group textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.3);
+}
+
+.form-group textarea::placeholder {
+    color: var(--text-secondary);
+}
+
+.danger-btn {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    min-height: auto;
+    padding: 10px 20px;
+}
+
+.danger-btn:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 8px 25px rgba(239, 68, 68, 0.4);
+}
+
+.danger-btn:active {
+    transform: translateY(0) scale(0.98);
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Стили для уведомлений */
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 1rem 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+    animation: slideInRight 0.3s ease;
+    color: white;
+}
+
+.notification.error {
+    background: rgba(239, 68, 68, 0.9);
+}
+
+.notification.success {
+    background: rgba(16, 185, 129, 0.9);
+}
+
+.notification.info {
+    background: rgba(59, 130, 246, 0.9);
+}
+
+.confirm-modal {
+    max-width: 400px;
+}
+
+.confirm-modal .modal-body p {
+    color: var(--text-color);
+    font-size: 1.1rem;
+    line-height: 1.6;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.confirm-modal .modal-actions {
+    justify-content: center;
+    gap: 15px;
+}
+
+.confirm-modal .btn {
+    min-width: 100px;
+}
