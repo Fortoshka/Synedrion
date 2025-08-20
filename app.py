@@ -7,6 +7,7 @@ import json
 import os
 import sys
 import uuid
+import subprocess
 
 app = Flask(__name__)
 
@@ -24,6 +25,10 @@ DEFAULT_SETTINGS = {
 CHATS_DIR = 'chats'
 if not os.path.exists(CHATS_DIR):
     os.makedirs(CHATS_DIR)
+
+CONFIG_DIR = 'config'
+if not os.path.exists(CONFIG_DIR):
+    os.makedirs(CONFIG_DIR)
 
 def load_settings():
     if os.path.exists(SETTINGS_FILE):
@@ -303,6 +308,48 @@ def send_ai_message():
             json.dump(chat_data, f, ensure_ascii=False, indent=2)
         
         return jsonify({'success': True, 'ai_message': ai_message})
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
+@app.route('/api/create_request', methods=['POST'])
+def create_request():
+    """Создание файла запроса для локального API и запуск api_sender.py"""
+    try:
+        data = request.get_json()
+        chat_filename = data.get('chat')
+        
+        if not chat_filename:
+            return jsonify({'error': 'Не указан файл чата'}), 400
+            
+        # Проверяем, что файл чата существует
+        chat_path = os.path.join(CHATS_DIR, chat_filename)
+        if not os.path.exists(chat_path):
+            return jsonify({'error': 'Файл чата не найден'}), 404
+        
+        # 1. Создаем файл request.json в директории config
+        request_data = {
+            "chat": chat_filename
+        }
+        
+        config_path = os.path.join(CONFIG_DIR, 'request.json')
+        with open(config_path, 'w', encoding='utf-8') as f:
+            json.dump(request_data, f, ensure_ascii=False, indent=2)
+        
+        # 2. Запускаем api_sender.py
+        try:
+            # Запускаем скрипт в отдельном процессе
+            subprocess.Popen([sys.executable, 'api_sender.py'], 
+                           stdout=subprocess.DEVNULL, 
+                           stderr=subprocess.DEVNULL)
+            # Если вы хотите видеть вывод скрипта в консоли, используйте:
+            # subprocess.Popen([sys.executable, 'api_sender.py'])
+        except FileNotFoundError:
+            return jsonify({'error': 'Файл api_sender.py не найден'}), 500
+        except Exception as e:
+            return jsonify({'error': f'Ошибка запуска api_sender.py: {str(e)}'}), 500
+        
+        return jsonify({'success': True, 'message': 'Запрос создан и обрабатывается'})
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500

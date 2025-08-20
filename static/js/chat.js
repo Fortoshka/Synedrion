@@ -850,9 +850,37 @@ class SingleChat {
 
     // Отправка сообщения ИИ через API
     async sendToAI(userMessage) {
-        // Замените на ваш реальный API
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        console.log('Сообщение отправлено ИИ:', userMessage);
+        if (!this.currentChatId) {
+            throw new Error('Нет активного чата');
+        }
+
+        try {
+            // 1. Создаем файл request.json
+            const response = await fetch('/api/create_request', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    chat: `${this.currentChatId}.json`
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Ошибка создания запроса');
+            }
+
+            // 2. Ждем завершения обработки (опрашиваем чат на наличие нового сообщения от ИИ)
+            // Пока просто ждем несколько секунд, в реальной реализации можно сделать более умную проверку
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            
+            console.log('Запрос отправлен ИИ через локальный API');
+            
+        } catch (error) {
+            console.error('Ошибка отправки сообщения через локальный API:', error);
+            throw error;
+        }
     }
 
     // Сохранение чата
