@@ -10,7 +10,17 @@
       "id": 2,
       "name": "Deepseek: Deepseek R1 0528 Qwen3 8B",
       "url": "deepseek/deepseek-r1-0528-qwen3-8b:free"
+    },
+    {
+      "id": 3,
+      "name": "OpenAI: gpt-oss-20b",
+      "url": "openai/gpt-oss-20b:free"
+    },
+    {
+      "id": 4,
+      "name": "TNG: DeepSeek R1T2 Chimera (free)",
+      "url": "tngtech/deepseek-r1t2-chimera:free"
     }
   ],
-  "theme": "dark"
+  "theme": "blue"
 }
