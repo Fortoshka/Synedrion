@@ -58,6 +58,7 @@ python app.py
 
 ## Структура
 
+```bash
 synedrion-ai-chat/
 ├── app.py                 # Основной файл приложения Flask и запуска PyWebView
 ├── settings.json          # Файл настроек приложения (создается автоматически)
@@ -79,4 +80,4 @@ synedrion-ai-chat/
 │       ├── settings.js    # JavaScript для страницы настроек
 │       └── chat.js        # JavaScript для страницы одиночного чата
 └── api_sender.py          # (Внешний) Скрипт для взаимодействия с вашим локальным ИИ API
-
+```
