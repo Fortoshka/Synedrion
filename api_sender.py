@@ -39,10 +39,11 @@ logging.info(f"Файл конфигурации {CONFIG_PATH} удалён по
 HISTORY_PATH = os.path.join(os.path.dirname(__file__), "chats", config["chat"])
 HISTORY_FILE = load_json(HISTORY_PATH)
 
-SYSTEM_PROMPT = HISTORY_FILE["system_prompt"]
+USER_SYSTEM_PROMPT = HISTORY_FILE["system_prompt"]
 MODEL = HISTORY_FILE["model"]
 API_KEYS_P = load_json("api_keys.json")
 
+BASE_SYSTEM_PROMPT = open(os.path.join(os.path.dirname(__file__), "config", "system_promt.txt"), "r", encoding="utf-8").read()
 
 def get_api_keys():
     p_url = "https://openrouter.ai/api/v1/keys"
@@ -65,7 +66,7 @@ def get_api_keys():
 
 def load_history():
     """Загружает историю диалога из файла"""
-    history = [{"role": "system", "content": SYSTEM_PROMPT}]
+    history = [{"role": "system", "content": f"{BASE_SYSTEM_PROMPT}\n{USER_SYSTEM_PROMPT}"}]
     for message in HISTORY_FILE["messages"]:
         if message["sender"] == "ai":
             history.append({"role": "assistant", "content": message["text"]})

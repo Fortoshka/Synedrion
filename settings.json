@@ -20,6 +20,16 @@
       "id": 4,
       "name": "TNG: DeepSeek R1T2 Chimera (free)",
       "url": "tngtech/deepseek-r1t2-chimera:free"
+    },
+    {
+      "id": 5,
+      "name": "Qwen3 235B A22B",
+      "url": "qwen/qwen3-235b-a22b:free"
+    },
+    {
+      "id": 6,
+      "name": "DeepSeek R1T Chimera",
+      "url": "tngtech/deepseek-r1t-chimera:free"
     }
   ],
   "theme": "blue"
