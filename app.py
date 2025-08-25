@@ -193,6 +193,7 @@ def create_new_chat():
         title = data.get('title', 'Новый чат')
         model = data.get('model', '')  # Получаем выбранную модель
         system_prompt = data.get('system_prompt', '')  # Получаем системный промпт
+        messages = data.get('messages', [])  # Получаем историю сообщений (если есть)
         
         # Генерируем уникальный ID для чата
         chat_id = str(uuid.uuid4())
@@ -206,7 +207,7 @@ def create_new_chat():
             'system_prompt': system_prompt if system_prompt else None,  # Сохраняем системный промпт
             'created_at': datetime.now().isoformat(),
             'updated_at': datetime.now().isoformat(),
-            'messages': []
+            'messages': messages  # Сохраняем историю сообщений
         }
         
         # Сохраняем чат в файл

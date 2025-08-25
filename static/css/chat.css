@@ -32,7 +32,7 @@
 }
 
 .small-btn {
-    min-height: auto;
+    min-height: 55px;
     padding: 10px;
     font-size: 0.9rem;
 }
@@ -154,6 +154,7 @@
 }
 
 .message.ai {
+    position: relative;
     align-self: flex-start;
     background: rgba(255, 255, 255, 0.2);
     color: var(--text-color);
@@ -538,7 +539,7 @@
 
 .chat-item-settings div {
     font-size: 1.2rem;
-    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    background: var(--primary-color);
     -webkit-text-fill-color: transparent;
     background-clip: text;
 }
@@ -585,8 +586,6 @@
 
 .danger-btn {
     background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-    min-height: auto;
-    padding: 10px 20px;
 }
 
 .danger-btn:hover {
@@ -653,4 +652,29 @@
 
 .confirm-modal .btn {
     min-width: 100px;
+}
+
+/* Кнопка перегенерации сообщения ИИ */
+.regenerate-btn {
+    position: absolute;
+    bottom: 5px;
+    right: 5px;
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    border-radius: 15px;
+    padding: 5px 10px;
+    color: var(--text-color);
+    font-size: 0.8rem;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s ease, background 0.2s ease;
+    backdrop-filter: blur(5px);
+}
+
+.regenerate-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.message.ai:hover .regenerate-btn {
+    opacity: 1;
 }
