@@ -32,7 +32,7 @@
 }
 
 .small-btn {
-    min-height: auto;
+    min-height: 55px;
     padding: 10px;
     font-size: 0.9rem;
 }
@@ -539,7 +539,7 @@
 
 .chat-item-settings div {
     font-size: 1.2rem;
-    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    background: var(--primary-color);
     -webkit-text-fill-color: transparent;
     background-clip: text;
 }
@@ -586,8 +586,6 @@
 
 .danger-btn {
     background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-    min-height: auto;
-    padding: 10px 20px;
 }
 
 .danger-btn:hover {
