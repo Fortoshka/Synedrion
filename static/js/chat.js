@@ -553,7 +553,7 @@ class SingleChat {
 
     // Остальные методы остаются без изменений...
     // (loadChat, startPolling, stopPolling, checkForUpdates, renderChat, clearChat, 
-    // addMessageToChat, sendMessage, sendToAI, saveChat, autoResizeTextarea, escapeHtml, destroy)
+    // addMessageToChat, sendToAI, saveChat, autoResizeTextarea, escapeHtml, destroy)
 
     // Загрузка конкретного чата
     async loadChat(chatId) {
@@ -761,22 +761,42 @@ class SingleChat {
 
         const messageElement = document.createElement('div');
         messageElement.className = `message ${message.sender === 'user' ? 'user' : 'ai'}`;
-        if (message.id) {
+        // Убедитесь, что у сообщения есть ID
+        if (message.id !== undefined) {
             messageElement.dataset.messageId = message.id;
         }
         
         const senderName = message.sender === 'user' ? 'Вы' : 'ИИ';
         
-        messageElement.innerHTML = `
-            <div class="sender">${senderName}</div>
-            <div class="text">${this.escapeHtml(message.text)}</div>
-        `;
+        // Для сообщений ИИ добавляем кнопку перегенерации
+        if (message.sender === 'ai') {
+            // Используем message.id для создания кнопки
+            messageElement.innerHTML = `
+                <div class="sender">${senderName}</div>
+                <div class="text">${this.escapeHtml(message.text)}</div>
+                <button class="regenerate-btn" data-message-id="${message.id}">↻ Перегенерировать</button>
+            `;
+            
+            // Добавляем обработчик для кнопки перегенерации
+            const regenerateBtn = messageElement.querySelector('.regenerate-btn');
+            regenerateBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                // Исправлено: используем message.id из внешней области видимости
+                this.regenerateMessage(message.id); 
+            });
+        } else {
+            messageElement.innerHTML = `
+                <div class="sender">${senderName}</div>
+                <div class="text">${this.escapeHtml(message.text)}</div>
+            `;
+        }
         
         messagesElement.appendChild(messageElement);
         messagesElement.scrollTop = messagesElement.scrollHeight;
     }
 
-    // Отправка сообщения
+    // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    // НОВАЯ ФУНКЦИЯ: Отправка сообщения пользователя
     async sendMessage() {
         if (!this.currentChatId || !this.currentChatData) return;
 
@@ -786,11 +806,12 @@ class SingleChat {
         const messageText = inputElement.value.trim();
         if (!messageText) return;
 
+        // Проверяем, можно ли отправлять сообщение (последнее сообщение от ИИ или чат пустой)
         let canSend = true;
         if (this.currentChatData.messages && this.currentChatData.messages.length > 0) {
             const lastMessage = this.currentChatData.messages[this.currentChatData.messages.length - 1];
             if (lastMessage.sender === 'user') {
-                canSend = false;
+                canSend = false; // Ждем ответа ИИ
             }
         }
 
@@ -799,42 +820,52 @@ class SingleChat {
             return;
         }
 
+        // Создаем объект сообщения пользователя
         const userMessage = {
-            id: Date.now(),
+            id: Date.now(), // Простой ID на основе времени
             sender: 'user',
             text: messageText,
             timestamp: new Date().toISOString()
         };
 
+        // Добавляем сообщение в UI
         this.addMessageToChat(userMessage);
         
+        // Очищаем поле ввода и сбрасываем размер
         inputElement.value = '';
         this.autoResizeTextarea.call(inputElement);
         
+        // Блокируем кнопку отправки и устанавливаем флаг ожидания
         this.isWaitingForAI = true;
         const sendButton = document.getElementById('send-message-btn');
         if (sendButton) {
             sendButton.disabled = true;
         }
 
+        // Добавляем сообщение в данные чата И СРАЗУ СОХРАНЯЕМ
         if (!this.currentChatData.messages) {
             this.currentChatData.messages = [];
         }
         this.currentChatData.messages.push(userMessage);
         
+        // СОХРАНЯЕМ СООБЩЕНИЕ ПОЛЬЗОВАТЕЛЯ НЕМЕДЛЕННО
         await this.saveChat();
 
         try {
+            // Отправляем сообщение ИИ через API
             await this.sendToAI(messageText);
+            
         } catch (error) {
             console.error('Ошибка отправки сообщения ИИ:', error);
             this.isWaitingForAI = false;
             
+            // Разблокируем кнопку отправки
             const sendButton = document.getElementById('send-message-btn');
             if (sendButton) {
                 sendButton.disabled = false;
             }
             
+            // Добавляем сообщение об ошибке в чат
             const errorMessage = {
                 id: Date.now() + 1,
                 sender: 'ai',
@@ -844,9 +875,10 @@ class SingleChat {
             
             this.addMessageToChat(errorMessage);
             this.currentChatData.messages.push(errorMessage);
-            await this.saveChat();
+            await this.saveChat(); // Сохраняем сообщение об ошибке
         }
     }
+    // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
     // Отправка сообщения ИИ через API
     async sendToAI(userMessage) {
@@ -926,6 +958,160 @@ class SingleChat {
     // Очистка при закрытии страницы
     destroy() {
         this.stopPolling();
+    };
+
+    async regenerateMessage(messageId) {
+        if (!this.currentChatId || !this.currentChatData) return;
+
+        try {
+            // Находим сообщение в истории
+            const messageIndex = this.currentChatData.messages.findIndex(msg => msg.id === messageId);
+            if (messageIndex === -1) {
+                console.error('Сообщение не найдено');
+                return;
+            }
+
+            // Проверяем, является ли это сообщение последним сообщением ИИ
+            const isLastAIMessage = this.isLastAIMessage(messageId);
+
+            if (isLastAIMessage) {
+                // Если это последнее сообщение ИИ, удаляем его и перегенерируем
+                await this.regenerateLastMessage(messageIndex);
+            } else {
+                // Если это не последнее сообщение, создаем новый чат
+                await this.createChatFromMessage(messageIndex);
+            }
+        } catch (error) {
+            console.error('Ошибка перегенерации сообщения:', error);
+            this.showNotification('Ошибка перегенерации сообщения', 'error');
+        }
+    }
+
+    // Проверка, является ли сообщение последним сообщением ИИ
+    isLastAIMessage(messageId) {
+        if (!this.currentChatData.messages) return false;
+        
+        // Находим индекс сообщения
+        const messageIndex = this.currentChatData.messages.findIndex(msg => msg.id === messageId);
+        if (messageIndex === -1) return false;
+        
+        // Проверяем, есть ли после этого сообщения другие сообщения ИИ
+        for (let i = messageIndex + 1; i < this.currentChatData.messages.length; i++) {
+            if (this.currentChatData.messages[i].sender === 'ai') {
+                return false;
+            }
+        }
+        
+        return true;
+    }
+
+    // Перегенерация последнего сообщения ИИ
+    async regenerateLastMessage(messageIndex) {
+        // Удаляем сообщение ИИ и предыдущее сообщение пользователя (если нужно)
+        // Но в данном случае мы удаляем только сообщение ИИ
+        this.currentChatData.messages.splice(messageIndex, 1);
+        
+        // Обновляем UI - удаляем элемент сообщения
+        const messagesContainer = document.getElementById('chat-messages');
+        const messageElements = messagesContainer.querySelectorAll('.message');
+        // Находим и удаляем элемент сообщения по messageId
+        messageElements.forEach(element => {
+            if (element.dataset.messageId == messageId) {
+                element.remove();
+            }
+        });
+        
+        // Сохраняем обновленный чат
+        await this.saveChat();
+        
+        // Блокируем интерфейс
+        this.isWaitingForAI = true;
+        const sendButton = document.getElementById('send-message-btn');
+        if (sendButton) {
+            sendButton.disabled = true;
+        }
+        
+        try {
+            // Вызываем sendToAI для генерации нового ответа
+            // Для этого нам нужно отправить последнее сообщение пользователя
+            if (messageIndex > 0) {
+                const lastUserMessage = this.currentChatData.messages[messageIndex - 1];
+                if (lastUserMessage.sender === 'user') {
+                    await this.sendToAI(lastUserMessage.text);
+                }
+            }
+        } catch (error) {
+            console.error('Ошибка при перегенерации:', error);
+            this.isWaitingForAI = false;
+            if (sendButton) {
+                sendButton.disabled = false;
+            }
+            this.showNotification('Ошибка перегенерации сообщения', 'error');
+        }
+    }
+
+    // Создание нового чата из сообщения
+    async createChatFromMessage(messageIndex) {
+        try {
+            // Получаем историю до указанного сообщения
+            const history = this.currentChatData.messages.slice(0, messageIndex);
+            
+            // Генерируем название для нового чата
+            let chatTitle = 'Перегенерация: ';
+            if (this.currentChatData.title) {
+                chatTitle += this.currentChatData.title;
+            } else {
+                chatTitle += 'Без названия';
+            }
+            
+            // Ограничиваем длину названия
+            if (chatTitle.length > 50) {
+                chatTitle = chatTitle.substring(0, 47) + '...';
+            }
+            
+            // Создаем новый чат с историей
+            const response = await fetch('/api/chats', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    title: chatTitle,
+                    model: this.currentChatData.model || '',
+                    system_prompt: this.currentChatData.system_prompt || undefined,
+                    messages: history
+                })
+            });
+            
+            if (response.ok) {
+                const newChat = await response.json();
+                
+                // Загружаем новый чат
+                await this.loadChat(newChat.id);
+                
+                // Блокируем интерфейс
+                this.isWaitingForAI = true;
+                const sendButton = document.getElementById('send-message-btn');
+                if (sendButton) {
+                    sendButton.disabled = true;
+                }
+                
+                // Получаем последнее сообщение пользователя из истории
+                if (history.length > 0) {
+                    const lastUserMessage = history[history.length - 1];
+                    if (lastUserMessage.sender === 'user') {
+                        await this.sendToAI(lastUserMessage.text);
+                    }
+                }
+                
+                this.showNotification('Создан новый чат для перегенерации', 'success');
+            } else {
+                throw new Error('Ошибка создания чата');
+            }
+        } catch (error) {
+            console.error('Ошибка создания чата для перегенерации:', error);
+            this.showNotification('Ошибка создания чата для перегенерации', 'error');
+        }
     }
 }
 
