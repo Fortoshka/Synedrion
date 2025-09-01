@@ -678,3 +678,256 @@
 .message.ai:hover .regenerate-btn {
     opacity: 1;
 }
+
+/* Мысли ИИ (THOUGHTS) */
+.ai-thoughts {
+    font-size: 0.85rem;
+    opacity: 0.8;
+    margin-bottom: 8px;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    font-style: italic;
+    border-radius: 10px;
+}
+
+.ai-thoughts-label {
+    font-weight: 600;
+    color: var(--secondary-color);
+    margin-right: 5px;
+}
+
+/* Основной ответ ИИ */
+.ai-response {
+    font-size: 1rem;
+    line-height: 1.5;
+}
+
+/* Сообщение ИИ с мыслями */
+.message.ai.with-thoughts {
+    padding: 0;
+}
+
+.message.ai.with-thoughts .message-content {
+    padding: 15px;
+}
+
+/* Адаптивность для мыслей */
+@media (max-width: 480px) {
+    .ai-thoughts {
+        font-size: 0.75rem;
+        padding: 6px 10px;
+    }
+    
+    .ai-response {
+        font-size: 0.9rem;
+    }
+}
+
+.message.ai.with-thoughts {
+    padding: 0;
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.message.ai.with-thoughts .message-content {
+    padding: 0;
+}
+
+.message.ai.with-thoughts .sender {
+    padding: 10px 15px 5px 15px;
+}
+
+/* Мысли ИИ (THOUGHTS) */
+.ai-thoughts {
+    font-size: 0.85rem;
+    opacity: 0.85;
+    padding: 12px 15px 12px 15px;
+    background: rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    font-style: italic;
+    line-height: 1.4;
+}
+
+.ai-thoughts-label {
+    font-weight: 600;
+    color: var(--secondary-color);
+    margin-right: 5px;
+}
+
+/* Основной ответ ИИ */
+.ai-response {
+    font-size: 1rem;
+    line-height: 1.5;
+    padding: 15px;
+}
+
+/* Кнопка перегенерации для сообщений с мыслями */
+.message.ai.with-thoughts .regenerate-btn {
+    position: absolute;
+    bottom: 5px;
+    right: 5px;
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    border-radius: 15px;
+    padding: 5px 10px;
+    color: var(--text-color);
+    font-size: 0.8rem;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s ease, background 0.2s ease;
+    backdrop-filter: blur(5px);
+    z-index: 1;
+}
+
+.message.ai.with-thoughts:hover .regenerate-btn {
+    opacity: 1;
+}
+
+.message.ai.with-thoughts .regenerate-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* Адаптивность */
+@media (max-width: 480px) {
+    .ai-thoughts {
+        font-size: 0.75rem;
+        padding: 10px 12px;
+    }
+    
+    .ai-response {
+        font-size: 0.9rem;
+        padding: 12px;
+    }
+    
+    .message.ai.with-thoughts .sender {
+        padding: 8px 12px 4px 12px;
+    }
+}
+
+/* Блок кода ИИ */
+.ai-code-block {
+    margin: 10px 0;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #1e1e1e;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 0.9rem;
+}
+
+.ai-code-header {
+    background: #2d2d30;
+    color: #cccccc;
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.ai-code-language {
+    font-weight: 600;
+    color: #569cd6;
+}
+
+.ai-code-copy-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #cccccc;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.ai-code-copy-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.ai-code-copy-btn.copied {
+    background: #4caf50;
+    border-color: #4caf50;
+    color: white;
+}
+
+.ai-code-content {
+    padding: 0;
+    margin: 0;
+    overflow-x: auto;
+    max-width: 100%;
+}
+
+.ai-code-lines {
+    display: table;
+    width: 100%;
+}
+
+.ai-code-line {
+    display: table-row;
+}
+
+.ai-code-line-number {
+    display: table-cell;
+    color: #858585;
+    background: #2d2d30;
+    padding: 0 12px;
+    text-align: right;
+    user-select: none;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    min-width: 40px;
+}
+
+.ai-code-line-content {
+    display: table-cell;
+    padding: 0 12px;
+    color: #d4d4d4;
+    white-space: pre;
+}
+
+/* Адаптивность для кода */
+@media (max-width: 480px) {
+    .ai-code-block {
+        font-size: 0.8rem;
+    }
+    
+    .ai-code-header {
+        padding: 6px 10px;
+        font-size: 0.75rem;
+    }
+    
+    .ai-code-line-number {
+        padding: 0 8px;
+        min-width: 30px;
+    }
+    
+    .ai-code-line-content {
+        padding: 0 8px;
+    }
+}
+
+.message.user .message-content {
+    margin-top: 0;
+}
+
+.message.ai .message-content {
+    margin-top: 5px;
+}
+
+/* Стили для заголовка модели */
+.message.ai .sender {
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin-bottom: 8px;
+    color: var(--secondary-color);
+    opacity: 0.9;
+}
+
+/* Адаптивность */
+@media (max-width: 480px) {
+    .message.ai .sender {
+        font-size: 0.85rem;
+        margin-bottom: 6px;
+    }
+}

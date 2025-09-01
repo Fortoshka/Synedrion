@@ -1,5 +1,3 @@
-// static/js/chat.js - дополнения
-
 class SingleChat {
     constructor() {
         this.currentChatId = null;
@@ -576,6 +574,153 @@ class SingleChat {
     // (loadChat, startPolling, stopPolling, checkForUpdates, renderChat, clearChat, 
     // addMessageToChat, sendToAI, saveChat, autoResizeTextarea, escapeHtml, destroy)
 
+    processAllTags(text) {
+        // Сначала извлекаем и обрабатываем все теги кода
+        const { processedText, codeBlocks } = this.extractAndProcessCodeTags(text);
+        
+        // Затем обрабатываем остальные теги в оставшемся тексте
+        const finalContent = this.processThoughtsAndResponseTags(processedText, codeBlocks);
+        
+        return finalContent;
+    }
+
+    extractAndProcessCodeTags(text) {
+        const codeBlocks = [];
+        let processedText = text;
+        let codeIndex = 0;
+        
+        // Регулярное выражение для поиска тегов [CODE:language]...[/CODE]
+        const codeRegex = /\[CODE:\s*([^\]]+?)\]([\s\S]*?)\[\/CODE\]/g;
+        
+        // Заменяем все найденные теги кода на плейсхолдеры
+        processedText = processedText.replace(codeRegex, (match, language, codeContent) => {
+            // Очищаем содержимое кода от лишних пробелов в начале и конце
+            const trimmedCode = codeContent.trim();
+            
+            // Сохраняем информацию о блоке кода
+            codeBlocks.push({
+                language: language.trim(),
+                code: trimmedCode
+            });
+            
+            // Возвращаем плейсхолдер
+            return `{{CODE_BLOCK_${codeIndex++}}}`;
+        });
+        
+        return { processedText, codeBlocks };
+    }
+
+    processThoughtsAndResponseTags(text, codeBlocks) {
+        let result = '';
+        let codeBlockIndex = 0;
+        
+        // Заменяем плейсхолдеры блоков кода на HTML
+        const textWithCode = text.replace(/\{\{CODE_BLOCK_(\d+)\}\}/g, (match, index) => {
+            const codeBlock = codeBlocks[index];
+            if (codeBlock) {
+                return this.createCodeBlockHTML(codeBlock.language, codeBlock.code);
+            }
+            return '';
+        });
+        
+        // Ищем теги [THOUGHTS] и [/THOUGHTS]
+        const thoughtsRegex = /\[THOUGHTS\](.*?)\[\/THOUGHTS\]/s;
+        const thoughtsMatch = textWithCode.match(thoughtsRegex);
+        
+        // Ищем теги [RESPONSE] и [/RESPONSE]
+        const responseRegex = /\[RESPONSE\](.*?)\[\/RESPONSE\]/s;
+        const responseMatch = textWithCode.match(responseRegex);
+        
+        // Извлекаем содержимое тегов
+        const thoughtsContent = thoughtsMatch && thoughtsMatch[1] ? thoughtsMatch[1].trim() : '';
+        const responseContent = responseMatch && responseMatch[1] ? responseMatch[1].trim() : '';
+        
+        // Если нет специальных тегов, отображаем как обычный текст
+        if (!thoughtsMatch && !responseMatch && !textWithCode.includes('<div class="ai-code-block">')) {
+            return `<div class="text">${this.escapeHtml(textWithCode)}</div>`;
+        }
+        
+        // Добавляем мысли, если есть
+        if (thoughtsContent) {
+            result += `
+                <div class="ai-thoughts">
+                    <span class="ai-thoughts-label">Мысли:</span>
+                    ${this.escapeHtml(thoughtsContent)}
+                </div>
+            `;
+        }
+        
+        // Добавляем основной ответ или оставшийся текст
+        if (responseContent) {
+            result += `<div class="ai-response">${this.escapeHtml(responseContent)}</div>`;
+        } else if (thoughtsContent) {
+            // Если есть только мысли, показываем оставшийся текст как ответ
+            let remainingText = textWithCode
+                .replace(thoughtsMatch[0], '')
+                .replace(/\{\{CODE_BLOCK_\d+\}\}/g, '') // Убираем плейсхолдеры
+                .trim();
+            
+            if (remainingText) {
+                result += `<div class="ai-response">${this.escapeHtml(remainingText)}</div>`;
+            }
+        } else {
+            // Если нет тегов THOUGHTS/RESPONSE, но есть код или другой текст
+            const cleanedText = textWithCode
+                .replace(/\{\{CODE_BLOCK_\d+\}\}/g, '') // Убираем плейсхолдеры
+                .trim();
+            
+            if (cleanedText) {
+                result += `<div class="ai-response">${this.escapeHtml(cleanedText)}</div>`;
+            }
+        }
+        
+        // Добавляем блоки кода в конец
+        codeBlocks.forEach((codeBlock, index) => {
+            const placeholder = `{{CODE_BLOCK_${index}}}`;
+            if (textWithCode.includes(placeholder)) {
+                result += this.createCodeBlockHTML(codeBlock.language, codeBlock.code);
+            }
+        });
+        
+        return result;
+    }
+
+    createCodeBlockHTML(language, codeContent) {
+        // Разбиваем код на строки
+        const lines = codeContent.split('\n'); // Исправлено: правильно разбиваем по \n
+        
+        // Создаем HTML для пронумерованных строк
+        let linesHtml = '';
+        lines.forEach((line, index) => {
+            // Используем escapeHtml вместо escapeHtmlForCode для консистентности
+            linesHtml += `
+                <div class="ai-code-line">
+                    <div class="ai-code-line-number">${index + 1}</div>
+                    <div class="ai-code-line-content">${this.escapeHtml(line)}</div>
+                </div>
+            `;
+        });
+        
+        // Создаем уникальный ID для кнопки копирования
+        const copyButtonId = `copy-btn-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        
+        return `
+            <div class="ai-code-block">
+                <div class="ai-code-header">
+                    <div class="ai-code-language">${this.escapeHtml(language)}</div>
+                    <button class="ai-code-copy-btn" id="${copyButtonId}" data-code="${this.escapeHtml(codeContent).replace(/"/g, '&quot;')}">
+                        Копировать
+                    </button>
+                </div>
+                <div class="ai-code-content">
+                    <div class="ai-code-lines">
+                        ${linesHtml}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
     // Загрузка конкретного чата
     async loadChat(chatId) {
         try {
@@ -795,60 +940,230 @@ class SingleChat {
 
         const messageElement = document.createElement('div');
         messageElement.className = `message ${message.sender === 'user' ? 'user' : 'ai'}`;
+        
         // Убедитесь, что у сообщения есть ID
         if (message.id !== undefined) {
             messageElement.dataset.messageId = message.id;
-        } else {
-            // Обработка сообщения без ID - это может быть проблемой
-            console.warn("Сообщение без ID добавлено в чат:", message);
-            // Можно добавить временный ID или обработать иначе
-            // message.id = 'temp_' + Date.now() + Math.random(); // Пример
         }
-
-        const senderName = message.sender === 'user' ? 'Вы' : 'ИИ';
-
-        // Для сообщений ИИ добавляем кнопку перегенерации
-        if (message.sender === 'ai') {
-            // Проверка наличия ID перед созданием кнопки
-            if (message.id === undefined) {
-                // Не добавляем кнопку, если нет ID
-                console.warn("Кнопка перегенерации не добавлена для сообщения без ID:", message);
-                messageElement.innerHTML = `
-                    <div class="sender">${senderName}</div>
-                    <div class="text">${this.escapeHtml(message.text)}</div>
-                    <button class="regenerate-btn" disabled title="Невозможно перегенерировать">↻ Перегенерировать (ID отсутствует)</button>
-                `;
-            } else {
-                messageElement.innerHTML = `
-                    <div class="sender">${senderName}</div>
-                    <div class="text">${this.escapeHtml(message.text)}</div>
-                    <button class="regenerate-btn" data-message-id="${message.id}">↻</button>
-                `;
-
-                // Добавляем обработчик для кнопки перегенерации
-                const regenerateBtn = messageElement.querySelector('.regenerate-btn');
-                // Дополнительная проверка на случай проблем с querySelector
-                if (regenerateBtn) {
-                    regenerateBtn.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        // Используем message.id из внешней области видимости
-                        // message.id гарантированно существует в этой ветке
-                        this.regenerateMessage(message.id);
-                    });
-                } else {
-                    console.error("Не удалось найти кнопку .regenerate-btn после создания элемента сообщения ИИ");
-                }
-            }
+        
+        // Для сообщений ИИ используем название модели вместо "ИИ"
+        let senderName = '';
+        if (message.sender === 'user') {
+            // Для сообщений пользователя не показываем заголовок "Вы"
+            senderName = '';
         } else {
-            // Сообщение пользователя
+            // Для сообщений ИИ показываем название модели
+            if (this.currentChatData && this.currentChatData.model) {
+                // Извлекаем название модели из URL
+                senderName = this.getModelDisplayName(this.currentChatData.model);
+            } else {
+                senderName = 'ИИ';
+            }
+        }
+        
+        // Для сообщений ИИ добавляем кнопку перегенерации и обрабатываем теги
+        if (message.sender === 'ai') {
+            // Сначала обрабатываем все теги (THOUGHTS, RESPONSE, CODE)
+            const processedContent = this.processAllAITags(message.text);
+            
+            // Формируем HTML с заголовком модели
+            let headerHtml = '';
+            if (senderName) {
+                headerHtml = `<div class="sender">${senderName}</div>`;
+            }
+            
             messageElement.innerHTML = `
-                <div class="sender">${senderName}</div>
-                <div class="text">${this.escapeHtml(message.text)}</div>
+                ${headerHtml}
+                <div class="message-content">
+                    ${processedContent}
+                </div>
+                <button class="regenerate-btn" data-message-id="${message.id}">↻ Перегенерировать</button>
+            `;
+            
+            // Добавляем обработчик для кнопки перегенерации
+            const regenerateBtn = messageElement.querySelector('.regenerate-btn');
+            regenerateBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.regenerateMessage(message.id); 
+            });
+        } else {
+            // Для сообщений пользователя не показываем заголовок
+            messageElement.innerHTML = `
+                <div class="message-content">
+                    <div class="text">${this.escapeHtml(message.text)}</div>
+                </div>
             `;
         }
-
+        
         messagesElement.appendChild(messageElement);
         messagesElement.scrollTop = messagesElement.scrollHeight;
+        
+        // Инициализируем обработчики для кнопок копирования кода
+        this.initCodeCopyButtons();
+    }
+
+    getModelDisplayName(modelUrl) {
+        // Попытка извлечь название из URL
+        try {
+            // Если это наш внутренний формат (как в примере: qwen/qwen3-coder:free)
+            if (modelUrl.includes(':')) {
+                return modelUrl.split(':')[0];
+            }
+            
+            // Если это URL HuggingFace, извлекаем название модели
+            if (modelUrl.includes('huggingface.co/')) {
+                const parts = modelUrl.split('huggingface.co/');
+                if (parts.length > 1) {
+                    return parts[1].replace('/', ': ');
+                }
+            }
+            
+            // Если это просто имя модели
+            if (modelUrl) {
+                return modelUrl;
+            }
+        } catch (e) {
+            console.log('Ошибка при извлечении имени модели:', e);
+        }
+        
+        // По умолчанию
+        return 'ИИ';
+    }
+
+    processAllAITags(text) {
+        let result = '';
+        let remainingText = text;
+
+        // 1. Сначала обрабатываем все блоки кода
+        const codeBlocks = [];
+        let codeIndex = 0;
+        
+        // Регулярное выражение для поиска тегов [CODE:language]...[/CODE]
+        const codeRegex = /\[CODE:\s*([^\]]+?)\]([\s\S]*?)\[\/CODE\]/g;
+        
+        // Заменяем все найденные теги кода на плейсхолдеры
+        remainingText = remainingText.replace(codeRegex, (match, language, codeContent) => {
+            // Очищаем содержимое кода от лишних пробелов в начале и конце
+            const trimmedCode = codeContent.trim();
+            
+            // Сохраняем информацию о блоке кода
+            codeBlocks.push({
+                language: language.trim(),
+                code: trimmedCode
+            });
+            
+            // Возвращаем плейсхолдер
+            return `{{CODE_BLOCK_${codeIndex++}}}`;
+        });
+
+        // 2. Обработка [THOUGHTS]
+        const thoughtsRegex = /\[THOUGHTS\]([\s\S]*?)\[\/THOUGHTS\]/;
+        const thoughtsMatch = thoughtsRegex.exec(remainingText);
+        if (thoughtsMatch) {
+            const thoughtsContent = thoughtsMatch[1].trim();
+            result += `<div class="ai-thoughts"><span class="ai-thoughts-label">Мысли:</span> ${this.escapeHtml(thoughtsContent)}</div>`;
+            // Удаляем обработанный тег из оставшегося текста
+            remainingText = remainingText.replace(thoughtsMatch[0], '');
+        }
+
+        // 3. Обработка [RESPONSE]
+        const responseRegex = /\[RESPONSE\]([\s\S]*?)\[\/RESPONSE\]/;
+        const responseMatch = responseRegex.exec(remainingText);
+        let responseContent = '';
+        if (responseMatch) {
+            responseContent = responseMatch[1].trim();
+            // Удаляем обработанный тег из оставшегося текста
+            remainingText = remainingText.replace(responseMatch[0], '');
+        }
+
+        // 4. Определяем основной текст ответа
+        let mainResponseContent = responseContent;
+        if (!mainResponseContent) {
+            // Если [RESPONSE] не было, используем оставшийся текст без плейсхолдеров кода
+            mainResponseContent = remainingText.replace(/\{\{CODE_BLOCK_\d+\}\}/g, '').trim();
+        }
+
+        // 5. Добавляем основной ответ
+        if (mainResponseContent) {
+            result += `<div class="ai-response">${this.escapeHtml(mainResponseContent)}</div>`;
+        }
+
+        // 6. Добавляем блоки кода
+        codeBlocks.forEach((codeBlock, index) => {
+            result += this.createCodeBlockHTML(codeBlock.language, codeBlock.code);
+        });
+
+        // Если ничего не добавили, показываем весь текст как есть
+        if (!result.trim()) {
+            result = `<div class="text">${this.escapeHtml(text)}</div>`;
+        }
+
+        return result;
+    }
+
+    // Функция копирования текста в буфер обмена
+    initCodeCopyButtons() {
+        const copyButtons = document.querySelectorAll('.ai-code-copy-btn:not([data-initialized])');
+        
+        copyButtons.forEach(button => {
+            button.setAttribute('data-initialized', 'true');
+            
+            button.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                
+                const codeToCopy = button.getAttribute('data-code');
+                const originalText = button.textContent;
+                
+                try {
+                    await navigator.clipboard.writeText(codeToCopy);
+                    
+                    button.textContent = 'Скопировано!';
+                    button.classList.add('copied');
+                    
+                    setTimeout(() => {
+                        button.textContent = originalText;
+                        button.classList.remove('copied');
+                    }, 2000);
+                    
+                } catch (err) {
+                    console.log('Clipboard API не доступен, используем fallback');
+                    
+                    try {
+                        const textArea = document.createElement('textarea');
+                        textArea.value = codeToCopy;
+                        textArea.style.position = 'fixed';
+                        textArea.style.left = '-999999px';
+                        textArea.style.top = '-999999px';
+                        document.body.appendChild(textArea);
+                        textArea.focus();
+                        textArea.select();
+                        
+                        const successful = document.execCommand('copy');
+                        document.body.removeChild(textArea);
+                        
+                        if (successful) {
+                            button.textContent = 'Скопировано!';
+                            button.classList.add('copied');
+                            
+                            setTimeout(() => {
+                                button.textContent = originalText;
+                                button.classList.remove('copied');
+                            }, 2000);
+                        } else {
+                            throw new Error('Не удалось скопировать');
+                        }
+                    } catch (fallbackErr) {
+                        console.error('Ошибка копирования:', fallbackErr);
+                        button.textContent = 'Ошибка!';
+                        
+                        setTimeout(() => {
+                            button.textContent = originalText;
+                            button.classList.remove('copied');
+                        }, 2000);
+                    }
+                }
+            });
+        });
     }
 
     // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -934,6 +1249,21 @@ class SingleChat {
             await this.saveChat(); // Сохраняем сообщение об ошибке
         }
     }
+
+    // Экранирование HTML специально для кода (сохраняем переносы строк)
+    escapeHtmlForCode(text) {
+        const map = {
+            '&': '&amp;',
+            '<': '<',
+            '>': '>',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+        
+        return text.replace(/[&<>"']/g, function(m) {
+            return map[m];
+        });
+    }
     // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
     // Отправка сообщения ИИ через API
@@ -1008,13 +1338,16 @@ class SingleChat {
             "'": '&#039;'
         };
         
-        return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+        let escapedText = text.replace(/[&<>"']/g, function(m) {
+            return map[m];
+        });
+        
+        escapedText = escapedText.replace(/\r\n/g, '<br>');
+        escapedText = escapedText.replace(/\n/g, '<br>');
+        escapedText = escapedText.replace(/\r/g, '<br>');
+        
+        return escapedText;
     }
-    
-    // Очистка при закрытии страницы
-    destroy() {
-        this.stopPolling();
-    };
 
     async regenerateMessage(messageId) {
         console.log('Попытка перегенерации сообщения с ID:', messageId);
