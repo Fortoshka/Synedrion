@@ -47,6 +47,28 @@ def save_settings(settings):
 def index():
     return render_template('index.html')
 
+@app.errorhandler(500)
+def internal_server_error(e):
+    """Обработчик внутренней ошибки сервера"""
+    return render_template('error/500.html'), 500
+
+# Обработчик ошибки 404 (Not Found)
+@app.errorhandler(404)
+def not_found_error(e):
+    """Обработчик ошибки страница не найдена"""
+    return render_template('error/404.html'), 404
+
+# Обработчик ошибки 500 для API
+@app.errorhandler(Exception)
+def handle_exception(e):
+    """Глобальный обработчик исключений"""
+    # Для запросов API возвращаем JSON
+    if request.path.startswith('/api/'):
+        return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
+    
+    # Для обычных страниц возвращаем HTML страницу ошибки
+    return render_template('error/500.html'), 500
+
 @app.route('/single_chat')
 def single_chat():
     return render_template('single_chat.html')

@@ -1,0 +1,87 @@
+<!-- templates/error/404.html -->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Страница не найдена - AI Chat Interface</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        /* Дополнительные стили для страницы ошибки */
+        .error-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .error-content {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            border: 1px solid var(--card-border);
+            padding: 3rem;
+            box-shadow: 0 8px 32px var(--shadow-color);
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .error-icon {
+            font-size: 4rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-color);
+        }
+
+        .error-title {
+            color: var(--text-color);
+            font-size: 2rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .error-message {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+
+        .back-button {
+            display: inline-block;
+            text-decoration: none;
+        }
+
+        /* Адаптивность */
+        @media (max-width: 480px) {
+            .error-content {
+                padding: 2rem 1.5rem;
+            }
+            
+            .error-title {
+                font-size: 1.7rem;
+            }
+            
+            .error-message {
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="error-container">
+        <div class="error-content">
+            <div class="error-icon">🔍</div>
+            <h1 class="error-title">Страница не найдена</h1>
+            <p class="error-message">
+                Запрашиваемая страница не существует. Как вы сюда вообще попали? Давайте-ка на главную.
+            </p>
+            <a href="/" class="btn primary-btn back-button small-btn">
+                <span class="btn-text">← Вернуться на главную</span>
+            </a>
+        </div>
+    </div>
+</body>
+</html>
