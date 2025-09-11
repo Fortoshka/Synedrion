@@ -94,7 +94,7 @@ def save_history(answer):
 def send_message_api(history):
     api_data = get_api_keys()
     headers = {
-        "Authorization": f"Bearer {api_data['key']}",
+        "Authorization": f"Bearer {api_data["key"]}",
         "Content-Type": "application/json"
     }
     data = {"model": MODEL, "messages": history}
@@ -114,6 +114,7 @@ def send_message_api(history):
         if "429" in err: error_answer += "Выбранная модель сейчас недоступна из-за высокой нагрузки. Попробуйте выбрать другую или попробйте позже."
         elif "502" in err: error_answer += "К сожалению, сервера сейчас перегружены. Попробуйте позже или выберите другую модель."
         elif "404" in err: error_answer += "К сожалению, выбранная вами модель больше не поддерживается. Пожалуйста, выберите другую."
+        logging.error(f"Ошибка сети при запросе: {result}")
         HISTORY_FILE["messages"].append({
         'id': int(time.time() * 1000),  # Уникальный ID
         'sender': 'error',

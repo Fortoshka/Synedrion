@@ -30,6 +30,16 @@
       "id": 6,
       "name": "DeepSeek R1T Chimera",
       "url": "tngtech/deepseek-r1t-chimera:free"
+    },
+    {
+      "id": 7,
+      "name": "DeepSeek V3.1",
+      "url": "deepseek/deepseek-chat-v3.1:free"
+    },
+    {
+      "id": 8,
+      "name": "Google: Gemma 3 27B",
+      "url": "google/gemma-3-27b-it:free"
     }
   ],
   "theme": "dark"
