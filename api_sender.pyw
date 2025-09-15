@@ -104,7 +104,7 @@ def send_message_api(history):
         response = requests.post(API_URL, headers=headers, json=data, timeout=30)
         response.raise_for_status()
         result = response.json()
-        logging.info("Ответ от API успешно получен.")
+        logging.info(f"Ответ от API успешно получен.\n{result}")
         return result['choices'][0]['message']['content']
     
     except requests.exceptions.RequestException as e:
