@@ -14,8 +14,8 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[
-        logging.FileHandler(LOG_PATH, encoding="utf-8"),  # пишем в файл
-        logging.StreamHandler()  # дублируем в консоль
+        logging.FileHandler(LOG_PATH, encoding="utf-8"),  
+        logging.StreamHandler() 
     ]
 )
 
@@ -47,6 +47,38 @@ BASE_SYSTEM_PROMPT = open(os.path.join(os.path.dirname(__file__), "config", "sys
 
 def get_api_keys():
     p_url = "https://openrouter.ai/api/v1/keys"
+    try:
+        for i in API_KEYS_P:
+            p_headers = {
+            "Authorization": f"Bearer {i}",
+            "Content-Type": "application/json"
+            }
+            logging.info("Запрос нового API ключа...")
+            data = requests.post(p_url, headers=p_headers, json={"name": "name"}, timeout=30).json()
+            data["p_api"] = i
+            logging.info(f"Новый API ключ получен: {data.get('data', {}).get('hash', 'нет hash')}")
+            try:
+                headers = {
+                    "Authorization": f"Bearer {data['key']}",
+                    "Content-Type": "application/json"
+                    }
+                data_response = {"model": "meta-llama/llama-3.2-3b-instruct:free", "messages": [{"role": "user", "content":"напиши только 'жду'"}]}
+                response = requests.post(API_URL, headers=headers, json=data_response, timeout=30)
+                logging.info(response.json())
+                response.raise_for_status()
+                with open("api_keys.json", "w", encoding="utf-8") as f:
+                    json.dump(API_KEYS_P, f, ensure_ascii=False, indent=4)
+                logging.info(f"Ключ {i} рабочий ура!")
+                return data
+            except requests.exceptions.RequestException as e:
+                logging.error(f"Ключ {i} времено не рабоатает!")
+                API_KEYS_P.append(API_KEYS_P.pop(0))
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Ошибка при получении ключа API: {e}")
+        sys.exit(0) 
+
+"""def get_api_keys():
+    p_url = "https://openrouter.ai/api/v1/keys"
     p_api = random.choice(API_KEYS_P)
     p_headers = {
         "Authorization": f"Bearer {p_api}",
@@ -61,8 +93,7 @@ def get_api_keys():
         return data
     except requests.exceptions.RequestException as e:
         logging.error(f"Ошибка при получении ключа API: {e}")
-        sys.exit(0) 
-
+        sys.exit(0) """
 
 def load_history():
     """Загружает историю диалога из файла"""
@@ -114,7 +145,7 @@ def send_message_api(history):
         if "429" in err: error_answer += "Выбранная модель сейчас недоступна из-за высокой нагрузки. Попробуйте выбрать другую или попробйте позже."
         elif "502" in err: error_answer += "К сожалению, сервера сейчас перегружены. Попробуйте позже или выберите другую модель."
         elif "404" in err: error_answer += "К сожалению, выбранная вами модель больше не поддерживается. Пожалуйста, выберите другую."
-        logging.error(f"Ошибка сети при запросе: {result}")
+        logging.error(f"Ошибка сети при запросе: {requests.post(API_URL, headers=headers, json=data, timeout=30).json()}")
         HISTORY_FILE["messages"].append({
         'id': int(time.time() * 1000),  # Уникальный ID
         'sender': 'error',
