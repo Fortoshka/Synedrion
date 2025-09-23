@@ -45,7 +45,7 @@ API_KEYS_P = load_json("api_keys.json")
 
 BASE_SYSTEM_PROMPT = open(os.path.join(os.path.dirname(__file__), "config", "system_promt.txt"), "r", encoding="utf-8").read()
 
-def get_api_keys():
+"""def get_api_keys():
     p_url = "https://openrouter.ai/api/v1/keys"
     try:
         for i in API_KEYS_P:
@@ -75,11 +75,11 @@ def get_api_keys():
                 API_KEYS_P.append(API_KEYS_P.pop(0))
     except requests.exceptions.RequestException as e:
         logging.error(f"Ошибка при получении ключа API: {e}")
-        sys.exit(0) 
+        sys.exit(0) """
 
-"""def get_api_keys():
+def get_api_keys():
     p_url = "https://openrouter.ai/api/v1/keys"
-    p_api = random.choice(API_KEYS_P)
+    p_api = API_KEYS_P[0]
     p_headers = {
         "Authorization": f"Bearer {p_api}",
         "Content-Type": "application/json"
@@ -89,11 +89,10 @@ def get_api_keys():
         data = requests.post(p_url, headers=p_headers, json={"name": "name"}, timeout=30).json()
         data["p_api"] = p_api
         logging.info(f"Новый API ключ получен: {data.get('data', {}).get('hash', 'нет hash')}")
-        time.sleep(1)
         return data
     except requests.exceptions.RequestException as e:
         logging.error(f"Ошибка при получении ключа API: {e}")
-        sys.exit(0) """
+        sys.exit(0) 
 
 def load_history():
     """Загружает историю диалога из файла"""
@@ -130,6 +129,7 @@ def send_message_api(history):
     }
     data = {"model": MODEL, "messages": history}
 
+    
     try:
         logging.info("Отправка сообщения в API...")
         response = requests.post(API_URL, headers=headers, json=data, timeout=30)
@@ -139,13 +139,21 @@ def send_message_api(history):
         return result['choices'][0]['message']['content']
     
     except requests.exceptions.RequestException as e:
+        response = requests.post(API_URL, headers=headers, json=data, timeout=30)
         logging.error(f"Ошибка сети при запросе: {e}")
         err = str(e)
         error_answer = f"Ошибка сети при запросе: {err}\n"
-        if "429" in err: error_answer += "Выбранная модель сейчас недоступна из-за высокой нагрузки. Попробуйте выбрать другую или попробйте позже."
+        if "429" in err:
+            error_answer += "Выбранная модель сейчас недоступна из-за высокой нагрузки или тот ключ, котрый вам выпал врмено не работате попробуйте перезапустить. Попробуйте выбрать другую или попробйте позже."
+            now_utc = datetime.datetime.utcnow()
+            reset_time_utc = datetime.datetime.utcfromtimestamp(response['error']['metadata']['headers']['X-RateLimit-Reset'] / 1000)
+            API_KEYS_P.append(API_KEYS_P.pop(0))
+            with open("api_keys.json", "w", encoding="utf-8") as f:
+                json.dump(API_KEYS_P, f, ensure_ascii=False, indent=4)
+            logging.error(f"Сброс лимита произойдет:{reset_time_utc}. Ключ заработатет через {reset_time_utc-now_utc} ")
         elif "502" in err: error_answer += "К сожалению, сервера сейчас перегружены. Попробуйте позже или выберите другую модель."
         elif "404" in err: error_answer += "К сожалению, выбранная вами модель больше не поддерживается. Пожалуйста, выберите другую."
-        logging.error(f"Ошибка сети при запросе: {requests.post(API_URL, headers=headers, json=data, timeout=30).json()}")
+        logging.error(f"Ошибка сети при запросе: {response.json()}")
         HISTORY_FILE["messages"].append({
         'id': int(time.time() * 1000),  # Уникальный ID
         'sender': 'error',
