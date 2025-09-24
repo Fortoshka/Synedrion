@@ -127,8 +127,13 @@ def send_message_api(history):
         "Authorization": f"Bearer {api_data["key"]}",
         "Content-Type": "application/json"
     }
-    data = {"model": MODEL, "messages": history}
-
+    data = {
+        "model": MODEL, 
+        "messages": history,
+        "reasoning": {
+            "max_tokens": 1000
+            }
+        }
     
     try:
         logging.info("Отправка сообщения в API...")
@@ -139,18 +144,20 @@ def send_message_api(history):
         return result['choices'][0]['message']['content']
     
     except requests.exceptions.RequestException as e:
-        response = requests.post(API_URL, headers=headers, json=data, timeout=30)
         logging.error(f"Ошибка сети при запросе: {e}")
         err = str(e)
         error_answer = f"Ошибка сети при запросе: {err}\n"
+        response = requests.post(API_URL, headers=headers, json=data, timeout=30)
         if "429" in err:
             error_answer += "Выбранная модель сейчас недоступна из-за высокой нагрузки или тот ключ, котрый вам выпал врмено не работате попробуйте перезапустить. Попробуйте выбрать другую или попробйте позже."
-            now_utc = datetime.datetime.utcnow()
-            reset_time_utc = datetime.datetime.utcfromtimestamp(response['error']['metadata']['headers']['X-RateLimit-Reset'] / 1000)
-            API_KEYS_P.append(API_KEYS_P.pop(0))
-            with open("api_keys.json", "w", encoding="utf-8") as f:
-                json.dump(API_KEYS_P, f, ensure_ascii=False, indent=4)
-            logging.error(f"Сброс лимита произойдет:{reset_time_utc}. Ключ заработатет через {reset_time_utc-now_utc} ")
+            try:
+                now_utc = datetime.datetime.utcnow()
+                reset_time_utc = datetime.datetime.utcfromtimestamp(response['error']['metadata']['headers']['X-RateLimit-Reset'] / 1000)
+                API_KEYS_P.append(API_KEYS_P.pop(0))
+                logging.error(f"Сброс лимита произойдет:{reset_time_utc}. Ключ заработатет через {reset_time_utc-now_utc} ")
+            finally:
+                with open("api_keys.json", "w", encoding="utf-8") as f:
+                    json.dump(API_KEYS_P, f, ensure_ascii=False, indent=4)
         elif "502" in err: error_answer += "К сожалению, сервера сейчас перегружены. Попробуйте позже или выберите другую модель."
         elif "404" in err: error_answer += "К сожалению, выбранная вами модель больше не поддерживается. Пожалуйста, выберите другую."
         logging.error(f"Ошибка сети при запросе: {response.json()}")

@@ -69,7 +69,7 @@ class GitApp(QMainWindow):
                 reply = QMessageBox.question(
                     self,
                     "Локальные изменения",
-                    "Обнаружены локальные изменения. Всё равно обновить? (ВСЕ ЛОКАЛЬНЫЕ ИЗМИНЕНИЯ БУДУТ УДАЛЕНЫ!)",
+                    "Обнаружены локальные изменения. Всё равно обновить?",
                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
                 )
                 if reply == QMessageBox.StandardButton.Yes:
