@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import (
     QTextEdit, QLabel, QWidget, QMessageBox, QDialog, QLineEdit, QDialogButtonBox
 )
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QFont
+from PyQt6.QtGui import QFont, QIcon
 import git
 
 class GitApp(QMainWindow):
@@ -159,6 +159,7 @@ class CommitDialog(QDialog):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    app.setWindowIcon(QIcon("logo.ico"))
     window = GitApp()
     window.setStyleSheet("""
         QMainWindow {
