@@ -30,6 +30,23 @@ CONFIG_DIR = 'config'
 if not os.path.exists(CONFIG_DIR):
     os.makedirs(CONFIG_DIR)
 
+def get_app_version():
+    """Получение версии приложения из файла VERSION.txt"""
+    version_file_path = os.path.join(os.path.dirname(__file__), 'VERSION.txt')
+    try:
+        if os.path.exists(version_file_path):
+            with open(version_file_path, 'r', encoding='utf-8') as f:
+                version = f.read().strip()
+                # Если файл пустой, возвращаем значение по умолчанию
+                return version if version else '1.0.0'
+        else:
+            # Если файл не существует, возвращаем значение по умолчанию
+            return '1.0.0'
+    except Exception as e:
+        print(f"Ошибка чтения файла версии: {e}")
+        # В случае ошибки возвращаем значение по умолчанию
+        return '1.0.0'
+
 def load_settings():
     if os.path.exists(SETTINGS_FILE):
         try:
@@ -90,6 +107,12 @@ def get_settings():
     """Получение текущих настроек"""
     settings = load_settings()
     return jsonify(settings)
+
+@app.route('/api/version')
+def get_version():
+    """API endpoint для получения версии приложения"""
+    version = get_app_version()
+    return jsonify({'version': version})
 
 @app.route('/api/settings', methods=['PUT'])
 def update_settings():

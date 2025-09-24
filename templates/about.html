@@ -1,9 +1,10 @@
+<!-- templates/about.html (обновленная версия) -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>О приложении - AI Chat Interface</title>
+    <title>О приложении</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
@@ -19,7 +20,8 @@
                     <div class="app-icon">🤖</div>
                     <div class="app-details">
                         <h2 class="app-name">Synedrion</h2>
-                        <p class="app-version">Версия: 0.1.0 build 11/09</p>
+                        <!-- Версия будет загружена динамически -->
+                        <p class="app-version">Версия: <span id="app-version">Загрузка...</span></p>
                         <p class="app-description">
                             Приложение для удобного взаимодействия с различными ИИ моделями через единый интерфейс.
                             Поддерживает как одиночные чаты, так и групповые обсуждения с несколькими моделями одновременно.
@@ -51,7 +53,7 @@
                         <div class="contact-icon">📧</div>
                         <div class="contact-details">
                             <h4>Email</h4>
-                            <p>*Скоро будет добавлен*</p>
+                            <p>*БУДЕТ ПОЗЖЕ*</p>
                         </div>
                     </div>
                     
@@ -75,13 +77,34 @@
 
             <!-- Кнопка возврата -->
             <div class="back-button-container">
-                <a href="/" class="btn secondary-btn nav-link small-btn">
+                <a href="/" class="btn secondary-btn small-btn">
                     <span class="btn-text">← Назад</span>
                 </a>
             </div>
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        // Функция загрузки версии приложения
+        async function loadAppVersion() {
+            try {
+                const response = await fetch('/api/version');
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('app-version').textContent = data.version;
+                } else {
+                    document.getElementById('app-version').textContent = '1.0.0';
+                }
+            } catch (error) {
+                console.error('Ошибка загрузки версии:', error);
+                document.getElementById('app-version').textContent = '1.0.0';
+            }
+        }
+
+        // Загружаем версию при загрузке страницы
+        document.addEventListener('DOMContentLoaded', function() {
+            loadAppVersion();
+        });
+    </script>
 </body>
 </html>

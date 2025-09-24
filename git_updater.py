@@ -1,5 +1,7 @@
 import sys
 import os
+import re
+from datetime import datetime
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QPushButton,
     QTextEdit, QLabel, QWidget, QMessageBox, QDialog, QLineEdit, QDialogButtonBox
@@ -14,7 +16,7 @@ class GitApp(QMainWindow):
         self.repo_path = "."
         self.repo = git.Repo(self.repo_path)
 
-        self.setWindowTitle("Git Sync App")
+        self.setWindowTitle("SynUpdate v1.0.1")
         self.setGeometry(300, 300, 400, 300)
 
         central_widget = QWidget()
@@ -22,7 +24,7 @@ class GitApp(QMainWindow):
         layout = QVBoxLayout(central_widget)
         layout.setContentsMargins(20, 20, 20, 20)
 
-        title_label = QLabel("Git Sync")
+        title_label = QLabel("Synedrion Repository Updater")
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title_label.setStyleSheet("font-size: 24px; color: #e0e0e0; font-weight: bold; margin-bottom: 10px;")
 
@@ -98,7 +100,8 @@ class GitApp(QMainWindow):
         if dialog.exec() == QDialog.DialogCode.Accepted:
             message = dialog.get_message()
             try:
-                self.repo.git.add(A=True)
+                self.update_version_file(message)
+                self.repo.git.add(A=True)  # Добавляем все изменения, включая VERSION.txt
                 self.repo.index.commit(message)
                 origin = self.repo.remotes.origin
                 origin.push()
@@ -106,6 +109,29 @@ class GitApp(QMainWindow):
                 QMessageBox.information(self, "Успех", "Изменения выложены!")
             except Exception as e:
                 QMessageBox.critical(self, "Ошибка", f"Ошибка отправки:\n{e}")
+
+    def update_version_file(self, message):
+        version_file = "VERSION.txt"
+        if not os.path.exists(version_file):
+            return
+
+        with open(version_file, "r", encoding="utf-8") as f:
+            content = f.read().strip()
+
+        match = re.match(r"(\d+\.\d+\.\d+)\s+build\s+(\d{2}/\d{2}/\d{2})", content)
+        if not match:
+            return
+
+        current_version = match.group(1)
+        new_version_match = re.match(r"(\d+\.\d+\.\d+)", message)
+        if new_version_match:
+            current_version = new_version_match.group(1)
+
+        today = datetime.now().strftime("%y/%m/%d")
+
+        new_content = f"{current_version} build {today}"
+        with open(version_file, "w", encoding="utf-8") as f:
+            f.write(new_content)
 
 
 class CommitDialog(QDialog):
