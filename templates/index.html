@@ -1,5 +1,82 @@
 <!DOCTYPE html>
 <html lang="ru">
+
+<script>
+    (function() {
+        try {
+            var savedTheme = localStorage.getItem('appTheme') || 'blue'; 
+            
+            var htmlElement = document.documentElement;
+
+            htmlElement.setAttribute('data-theme', savedTheme);
+
+            htmlElement.classList.add('theme-loading');
+
+            var themeVariables = {
+                'blue': `
+                    --primary-color: #2563eb;
+                    --primary-dark: #1d4ed8;
+                    --secondary-color: #60a5fa;
+                    --secondary-dark: #3b82f6;
+                    --background-gradient: linear-gradient(-45deg, #1e3c72, #2a5298, #3a7bd5, #00d2ff);
+                    --text-color: white;
+                    --text-secondary: rgba(255, 255, 255, 0.9);
+                    --card-bg: rgba(255, 255, 255, 0.15);
+                    --card-border: rgba(255, 255, 255, 0.2);
+                    --shadow-color: rgba(31, 38, 135, 0.37);
+                `,
+                'dark': `
+                    --primary-color: #6366f1;
+                    --primary-dark: #4f46e5;
+                    --secondary-color: #818cf8;
+                    --secondary-dark: #6366f1;
+                    --background-gradient: linear-gradient(-45deg, #0f172a, #1e293b, #334155, #475569);
+                    --text-color: #f1f5f9;
+                    --text-secondary: rgba(241, 245, 249, 0.9);
+                    --card-bg: rgba(30, 41, 59, 0.7);
+                    --card-border: rgba(71, 85, 105, 0.5);
+                    --shadow-color: rgba(0, 0, 0, 0.5);
+                `,
+                'light': `
+                    --primary-color: #000000;
+                    --primary-dark: #000000;
+                    --secondary-color: #0e0e0e;
+                    --secondary-dark: #000000;
+                    --background-gradient: linear-gradient(-45deg, #000000, #000000, #000000, #000000);
+                    --text-color: #00890e;
+                    --text-secondary: #8b8b8b;
+                    --card-bg: rgba(11, 44, 0, 0.8);
+                    --card-border: rgba(9, 112, 0, 0.8);
+                    --shadow-color: rgba(35, 173, 0, 0.3);
+                    --icon-primary-color: #0ba500;
+                    --icon-secondary-color: #174809;
+                `
+            };
+
+            var cssVariables = themeVariables[savedTheme] || themeVariables['blue']; // fallback на blue
+
+            var styleTag = document.createElement('style');
+            styleTag.id = 'preloaded-theme-variables';
+            styleTag.textContent = `
+                :root {
+                    ${cssVariables}
+                }
+                /* Применяем фон сразу к html и body */
+                html, body {
+                    background: var(--background-gradient);
+                    height: 100%;
+                    margin: 0;
+                    padding: 0;
+                }
+            `;
+            document.head.appendChild(styleTag);
+
+        } catch(e) {
+            console.log("Не удалось применить тему на этапе предзагрузки", e);
+        }
+    })();
+</script>
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,22 +91,22 @@
         </div>
 
         <div class="buttons-container">
-            <a href="/single_chat" class="btn primary-btn nav-link">
+            <a href="/single_chat" class="btn primary-btn">
                 <span class="btn-icon">👋</span>
                 <span class="btn-text">Одиночные чаты</span>
             </a>
             
-            <a href="/council" class="btn primary-btn nav-link">
+            <a href="/council" class="btn primary-btn">
                 <span class="btn-icon">🫸🫷</span>
                 <span class="btn-text">Консилиумы</span>
             </a>
             
-            <a href="/settings" class="btn secondary-btn nav-link">
+            <a href="/settings" class="btn secondary-btn">
                 <span class="btn-icon">⚙️</span>
                 <span class="btn-text">Настройки</span>
             </a>
             
-            <a href="/about" class="btn secondary-btn nav-link">
+            <a href="/about" class="btn secondary-btn">
                 <span class="btn-icon">❓</span>
                 <span class="btn-text">О приложении</span>
             </a>

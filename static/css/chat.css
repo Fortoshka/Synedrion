@@ -1,4 +1,8 @@
 /* static/css/chat.css */
+body{
+    visibility: visible;
+}
+
 .chat-container {
     display: flex;
     height: 100vh;

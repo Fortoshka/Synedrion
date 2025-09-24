@@ -18,8 +18,6 @@ function getGreeting() {
 
 // Глобальная функция для плавных переходов между страницами
 async function navigateTo(url) {
-    // Показываем индикатор загрузки
-    showLoading();
     
     try {
         // Анимация выхода с текущей страницы
@@ -44,36 +42,13 @@ async function navigateTo(url) {
         setTimeout(() => {
             document.body.style.opacity = '1';
             document.body.style.transform = 'translateY(0)';
-            hideLoading();
         }, 50);
         
     } catch (error) {
         console.error('Ошибка перехода:', error);
-        hideLoading();
         // Восстанавливаем видимость в случае ошибки
         document.body.style.opacity = '1';
         document.body.style.transform = 'translateY(0)';
-    }
-}
-
-// Показать индикатор загрузки
-function showLoading() {
-    let loadingOverlay = document.getElementById('loading-overlay');
-    if (!loadingOverlay) {
-        loadingOverlay = document.createElement('div');
-        loadingOverlay.id = 'loading-overlay';
-        loadingOverlay.className = 'loading-overlay';
-        loadingOverlay.innerHTML = '<div class="spinner"></div>';
-        document.body.appendChild(loadingOverlay);
-    }
-    loadingOverlay.classList.add('active');
-}
-
-// Скрыть индикатор загрузки
-function hideLoading() {
-    const loadingOverlay = document.getElementById('loading-overlay');
-    if (loadingOverlay) {
-        loadingOverlay.classList.remove('active');
     }
 }
 
@@ -146,7 +121,7 @@ function setupButtonEffects() {
 // Обработчики событий для кнопок
 function buttonMouseEnter() {
     this.style.transform = 'translateY(-8px) scale(1.02)';
-    this.style.boxShadow = '0 15px 35px rgba(37, 99, 235, 0.4)';
+    this.style.boxShadow = '0 15px 35px rgba(95, 95, 95, 0.4)';
 }
 
 function buttonMouseLeave() {
