@@ -14,7 +14,7 @@ class GitApp(QMainWindow):
         self.repo_path = "."
         self.repo = git.Repo(self.repo_path)
 
-        self.setWindowTitle("Synedrion DevUpdate")
+        self.setWindowTitle("Git Sync App")
         self.setGeometry(300, 300, 400, 300)
 
         central_widget = QWidget()
@@ -22,7 +22,7 @@ class GitApp(QMainWindow):
         layout = QVBoxLayout(central_widget)
         layout.setContentsMargins(20, 20, 20, 20)
 
-        title_label = QLabel("Synedrion Repository Update")
+        title_label = QLabel("Git Sync")
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title_label.setStyleSheet("font-size: 24px; color: #e0e0e0; font-weight: bold; margin-bottom: 10px;")
 
@@ -63,12 +63,35 @@ class GitApp(QMainWindow):
 
     def update_repo(self):
         try:
+            if self.repo.is_dirty(untracked_files=True):
+                reply = QMessageBox.question(
+                    self,
+                    "Локальные изменения",
+                    "Обнаружены локальные изменения. Всё равно обновить? (ВСЕ ЛОКАЛЬНЫЕ ИЗМИНЕНИЯ БУДУТ УДАЛЕНЫ!)",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                )
+                if reply == QMessageBox.StandardButton.Yes:
+                    self.force_pull()
+                else:
+                    return
+            else:
+                origin = self.repo.remotes.origin
+                origin.pull(rebase=True)
+                self.show_latest_commit()
+                QMessageBox.information(self, "Успех", "Репозиторий обновлён!")
+        except Exception as e:
+            QMessageBox.critical(self, "Ошибка", f"Ошибка обновления:\n{e}")
+
+    def force_pull(self):
+        try:
+            self.repo.git.reset('--hard')
+            self.repo.git.clean('-fd')
             origin = self.repo.remotes.origin
             origin.pull(rebase=True)
             self.show_latest_commit()
-            QMessageBox.information(self, "Успех", "Репозиторий обновлён!")
+            QMessageBox.information(self, "Успех", "Репозиторий принудительно обновлён!")
         except Exception as e:
-            QMessageBox.critical(self, "Ошибка", f"Ошибка обновления:\n{e}")
+            QMessageBox.critical(self, "Ошибка", f"Ошибка принудительного обновления:\n{e}")
 
     def push_changes(self):
         dialog = CommitDialog(self)
@@ -89,11 +112,12 @@ class CommitDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Описание изменений")
-        self.resize(600, 130)
+        self.resize(500, 150)
+
         layout = QVBoxLayout(self)
 
         self.text_input = QLineEdit()
-        self.text_input.setPlaceholderText("Введите краткое описание изменений (желательно на английском)...")
+        self.text_input.setPlaceholderText("Введите краткое описание изменений...")
         self.text_input.setFont(QFont("Arial", 12))
 
         button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
