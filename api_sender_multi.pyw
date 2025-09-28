@@ -44,6 +44,7 @@ MODEL = HISTORY_FILE["model"]
 API_KEYS_P = load_json("api_keys.json")
 
 BASE_SYSTEM_PROMPT = open(os.path.join(os.path.dirname(__file__), "config", "system_promt.txt"), "r", encoding="utf-8").read()
+BASE_SYSTEM_PROMPT =""
 
 
 def get_api_keys():
@@ -68,20 +69,25 @@ def load_history():
     history = [{"role": "system", "content": f"{BASE_SYSTEM_PROMPT}\n{USER_SYSTEM_PROMPT}"}]
     for message in HISTORY_FILE["messages"]:
         if message["sender"] == "ai":
-            history.append({"role": "assistant", "content": message["text"]})
+            if "model" in list(message.keys()):
+                history.append({"role": "assistant", "model": message["model"], "content": message["text"]})
+            else:
+                history.append({"role": "assistant", "content": message["text"]})
         elif message["sender"] == "user":
             history.append({"role": "user", "content": message["text"]})
         elif message["sender"] == "error":
-            history.pop()
+            pass
+            #history.pop()
     logging.info(f"История диалога загружена. Всего сообщений: {len(history)}\n{history}")
     return history
 
 
-def save_history(answer):
+def save_history(answer, model):
     """Сохраняет историю диалога в файл"""
     HISTORY_FILE["messages"].append({
         'id': int(time.time() * 1000),  # Уникальный ID
         'sender': 'ai',
+        "model": model,
         'text': answer,
         'timestamp': datetime.now().isoformat()
     })
@@ -90,14 +96,14 @@ def save_history(answer):
     logging.info("История успешно сохранена.")
 
 
-def send_message_api(history):
+def send_message_api(history, model):
     api_data = get_api_keys()
     headers = {
         "Authorization": f"Bearer {api_data["key"]}",
         "Content-Type": "application/json"
     }
     data = {
-        "model": MODEL, 
+        "model": model, 
         "messages": history,
         "reasoning": {
             "max_tokens": 1000
@@ -106,7 +112,7 @@ def send_message_api(history):
     
     try:
         logging.info("Отправка сообщения в API...")
-        response = requests.post(API_URL, headers=headers, json=data, timeout=30)
+        response = requests.post(API_URL, headers=headers, json=data, timeout=60)
         response.raise_for_status()
         result = response.json()
         logging.info(f"Ответ от API успешно получен.\n{result}")
@@ -120,10 +126,12 @@ def send_message_api(history):
         if "429" in err:
             error_answer += "Выбранная модель сейчас недоступна из-за высокой нагрузки или тот ключ, котрый вам выпал врмено не работате попробуйте перезапустить. Попробуйте выбрать другую или попробйте позже."
             try:
-                now_utc = datetime.datetime.utcnow()
-                reset_time_utc = datetime.datetime.utcfromtimestamp(response['error']['metadata']['headers']['X-RateLimit-Reset'] / 1000)
-                API_KEYS_P.append(API_KEYS_P.pop(0))
-                logging.error(f"Сброс лимита произойдет:{reset_time_utc}. Ключ заработатет через {reset_time_utc-now_utc} ")
+                try:
+                    now_utc = datetime.datetime.utcnow()
+                    reset_time_utc = datetime.datetime.utcfromtimestamp(response['error']['metadata']['headers']['X-RateLimit-Reset'] / 1000)
+                    logging.error(f"Сброс лимита произойдет:{reset_time_utc}. Ключ заработатет через {reset_time_utc-now_utc} ")
+                finally:
+                    API_KEYS_P.append(API_KEYS_P.pop(0))
             finally:
                 with open("api_keys.json", "w", encoding="utf-8") as f:
                     json.dump(API_KEYS_P, f, ensure_ascii=False, indent=4)
@@ -156,13 +164,16 @@ def send_message_api(history):
 
 
 def main():
-    history = load_history()
-    answer = send_message_api(history)
-    if answer:
-        save_history(answer)
-        logging.info("Ответ сохранён в истории.")
-    else:
-        logging.warning("Ответ не был получен.")
+    for model in ["qwen/qwen3-coder:free", "deepseek/deepseek-chat-v3.1:free", "google/gemini-2.0-flash-exp:free"]:
+        time.sleep(1)
+        history = load_history()
+        answer = send_message_api(history, model)
+        if answer:
+            save_history(answer, model)
+            logging.info("Ответ сохранён в истории.")
+        else:
+            logging.warning("Ответ не был получен.")
+        logging.info("Еще запрос ИИ")
 
 
 if __name__ == "__main__":

@@ -386,8 +386,8 @@ def create_request():
         try:
             # Запускаем скрипт в отдельном процессе
             subprocess.Popen([sys.executable, 'api_sender.pyw'], 
-                           stdout=subprocess.DEVNULL, 
-                           stderr=subprocess.DEVNULL)
+                           stdout=subprocess.PIPE, 
+                           stderr=subprocess.PIPE)
             # Если вы хотите видеть вывод скрипта в консоли, используйте:
             # subprocess.Popen([sys.executable, 'api_sender.py'])
         except FileNotFoundError:
