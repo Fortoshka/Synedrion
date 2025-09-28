@@ -33,18 +33,17 @@ API_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), "config", "request.json")
 config = load_json(CONFIG_PATH)
-os.remove(CONFIG_PATH)
-logging.info(f"Файл конфигурации {CONFIG_PATH} удалён после загрузки.")
 
 HISTORY_PATH = os.path.join(os.path.dirname(__file__), "chats", config["chat"])
 HISTORY_FILE = load_json(HISTORY_PATH)
 
 USER_SYSTEM_PROMPT = HISTORY_FILE["system_prompt"]
 MODEL = HISTORY_FILE["model"]
-API_KEYS_P = load_json("api_keys.json")
+API_KEYS_PATH = os.path.join(os.path.dirname(__file__), "api_keys.json")
+API_KEYS_P = load_json(API_KEYS_PATH)
 
 BASE_SYSTEM_PROMPT = open(os.path.join(os.path.dirname(__file__), "config", "system_promt.txt"), "r", encoding="utf-8").read()
-BASE_SYSTEM_PROMPT =""
+
 
 
 def get_api_keys():
@@ -98,18 +97,19 @@ def save_history(answer, model):
 
 def send_message_api(history, model):
     api_data = get_api_keys()
+    response = None
     headers = {
-        "Authorization": f"Bearer {api_data["key"]}",
+        "Authorization": f"Bearer {api_data['key']}",
         "Content-Type": "application/json"
     }
     data = {
-        "model": model, 
+        "model": model,
         "messages": history,
         "reasoning": {
             "max_tokens": 1000
-            }
         }
-    
+    }
+
     try:
         logging.info("Отправка сообщения в API...")
         response = requests.post(API_URL, headers=headers, json=data, timeout=60)
@@ -117,41 +117,58 @@ def send_message_api(history, model):
         result = response.json()
         logging.info(f"Ответ от API успешно получен.\n{result}")
         return result['choices'][0]['message']['content']
-    
+
     except requests.exceptions.RequestException as e:
         logging.error(f"Ошибка сети при запросе: {e}")
         err = str(e)
         error_answer = f"Ошибка сети при запросе: {err}\n"
-        response = requests.post(API_URL, headers=headers, json=data, timeout=30)
+        response = e.response or response
+        response_json = None
+        if response is not None:
+            try:
+                response_json = response.json()
+            except ValueError:
+                response_json = None
         if "429" in err:
             error_answer += "Выбранная модель сейчас недоступна из-за высокой нагрузки или тот ключ, котрый вам выпал врмено не работате попробуйте перезапустить. Попробуйте выбрать другую или попробйте позже."
             try:
                 try:
-                    now_utc = datetime.datetime.utcnow()
-                    reset_time_utc = datetime.datetime.utcfromtimestamp(response['error']['metadata']['headers']['X-RateLimit-Reset'] / 1000)
-                    logging.error(f"Сброс лимита произойдет:{reset_time_utc}. Ключ заработатет через {reset_time_utc-now_utc} ")
+                    now_utc = datetime.utcnow()
+                    reset_ts = None
+                    if response_json:
+                        reset_ts = (
+                            response_json.get('error', {})
+                            .get('metadata', {})
+                            .get('headers', {})
+                            .get('X-RateLimit-Reset')
+                        )
+                    if reset_ts:
+                        reset_time_utc = datetime.utcfromtimestamp(reset_ts / 1000)
+                        logging.error(f"Сброс лимита произойдет:{reset_time_utc}. Ключ заработатет через {reset_time_utc-now_utc} ")
                 finally:
                     API_KEYS_P.append(API_KEYS_P.pop(0))
             finally:
-                with open("api_keys.json", "w", encoding="utf-8") as f:
+                with open(API_KEYS_PATH, "w", encoding="utf-8") as f:
                     json.dump(API_KEYS_P, f, ensure_ascii=False, indent=4)
-        elif "502" in err: error_answer += "К сожалению, сервера сейчас перегружены. Попробуйте позже или выберите другую модель."
-        elif "404" in err: error_answer += "К сожалению, выбранная вами модель больше не поддерживается. Пожалуйста, выберите другую."
+        elif "502" in err:
+            error_answer += "К сожалению, сервера сейчас перегружены. Попробуйте позже или выберите другую модель."
+        elif "404" in err:
+            error_answer += "К сожалению, выбранная вами модель больше не поддерживается. Пожалуйста, выберите другую."
         logging.error(f"Ошибка сети при запросе: {response.json()}")
         HISTORY_FILE["messages"].append({
-        'id': int(time.time() * 1000),  # Уникальный ID
-        'sender': 'error',
-        'text': error_answer,
-        'timestamp': datetime.now().isoformat()
+            'id': int(time.time() * 1000),
+            'sender': 'error',
+            'text': error_answer,
+            'timestamp': datetime.now().isoformat()
         })
         with open(HISTORY_PATH, "w", encoding="utf-8") as f:
             json.dump(HISTORY_FILE, f, ensure_ascii=False, indent=2)
         return None
-    
+
     except KeyError:
         logging.error(f"Неверный формат ответа API: {response.text}")
         return None
-    
+
     finally:
         try:
             response_del = requests.delete(
@@ -164,7 +181,7 @@ def send_message_api(history, model):
 
 
 def main():
-    for model in ["qwen/qwen3-coder:free", "deepseek/deepseek-chat-v3.1:free", "google/gemini-2.0-flash-exp:free"]:
+    for model in ["openai/gpt-oss-20b:free", "deepseek/deepseek-chat-v3.1:free", "meta-llama/llama-4-scout:free"]:
         time.sleep(1)
         history = load_history()
         answer = send_message_api(history, model)
@@ -174,6 +191,9 @@ def main():
         else:
             logging.warning("Ответ не был получен.")
         logging.info("Еще запрос ИИ")
+    if os.path.exists(CONFIG_PATH):
+        os.remove(CONFIG_PATH)
+        logging.info(f"Файл конфигурации {CONFIG_PATH} удалён после обработки.")
 
 
 if __name__ == "__main__":
