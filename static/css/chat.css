@@ -157,12 +157,23 @@ body{
     border-bottom-right-radius: 5px;
 }
 
+[data-theme="light"] .message.user {
+    color: #51a615;
+    border: 1px solid #51a615;
+}
+
 .message.ai {
     position: relative;
     align-self: flex-start;
     background: rgba(255, 255, 255, 0.2);
     color: var(--text-color);
     border-bottom-left-radius: 5px;
+}
+
+[data-theme="light"] .message.ai{
+    background-color: black;
+    color: white;
+    border: 1px solid white;
 }
 
 .message .sender {
@@ -592,9 +603,18 @@ body{
     background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
 }
 
+[data-theme="light"] .danger-btn {
+    background: linear-gradient(135deg, #51a615 0%, #164d11 100%);
+    color: black;
+}
+
 .danger-btn:hover {
     transform: translateY(-2px) scale(1.02);
     box-shadow: 0 8px 25px rgba(239, 68, 68, 0.4);
+}
+
+[data-theme="light"] .danger-btn:hover {
+    box-shadow: 0 8px 25px rgba(23, 128, 30, 0.3);
 }
 
 .danger-btn:active {
@@ -926,6 +946,10 @@ body{
     margin-bottom: 8px;
     color: var(--secondary-color);
     opacity: 0.9;
+}
+
+[data-theme="light"] .message.ai .sender {
+    color: white;
 }
 
 /* Адаптивность */

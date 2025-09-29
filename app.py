@@ -404,7 +404,7 @@ def call_ai_api(message):
     return f"Это ответ ИИ на ваше сообщение: '{message}'. Не переживайте, однажды эта заглушка сменится на нормальный ответ."
 
 def start_server():
-    app.run(host='127.0.0.1', port=5001, debug=False, use_reloader=False)
+    app.run(host='127.0.0.1', port=5001, debug=True, use_reloader=False)
 
 if __name__ == '__main__':
     # Создаем файл настроек при первом запуске

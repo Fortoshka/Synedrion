@@ -70,6 +70,10 @@ body {
     color: var(--text-color);
 }
 
+[data-theme="light"] body {
+    font-family: Cascadia Code;
+}
+
 /* Анимация переливающегося фона */
 @keyframes gradientShift {
     0% {
@@ -506,9 +510,19 @@ input:checked + .slider:before {
     font-weight: 500;
 }
 
+[data-theme="light"] .delete-btn {
+    background: rgba(26, 137, 12, 0.2);
+    border: 1px solid rgba(21, 123, 18, 0.5);
+    color: #3ce60e;
+}
+
 .delete-btn:hover {
     background: rgba(239, 68, 68, 0.3);
     transform: scale(1.05);
+}
+
+[data-theme="light"] .delete-btn:hover {
+    background: rgba(61, 161, 21, 0.3);
 }
 
 /* Добавление модели */
@@ -652,9 +666,21 @@ input:checked + .slider:before {
     animation: pulseExit 2s infinite;
 }
 
+[data-theme="light"] .exit-btn {
+    background: linear-gradient(135deg, #51a615 0%, #164d11 100%);
+}
+
+[data-theme="light"] .exit-btn span{
+    color: #000000;
+}
+
 .exit-btn:hover {
     transform: translateY(-5px) scale(1.02);
     box-shadow: 0 12px 30px rgba(239, 68, 68, 0.3);
+}
+
+[data-theme="light"] .exit-btn:hover {
+    box-shadow: 0 12px 30px rgba(23, 128, 30, 0.3);
 }
 
 @keyframes pulseExit {
