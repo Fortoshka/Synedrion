@@ -65,15 +65,15 @@ def get_api_keys():
 
 def load_history():
     """Загружает историю диалога из файла"""
-    history = [{"role": "system", "content": f"{BASE_SYSTEM_PROMPT}\n{USER_SYSTEM_PROMPT}"}]
+    history = [{"role": "system", "content": f"{BASE_SYSTEM_PROMPT} \n [USERPROMPT] \n{USER_SYSTEM_PROMPT} \n[/USERPROMPT] \n [/INSTRUCTION]"}]
     for message in HISTORY_FILE["messages"]:
         if message["sender"] == "ai":
-            history.append({"role": "assistant", "content": message["text"]})
+            history.append({"role": "assistant", "reasoning": message.get("reasoning", ""), "content": message.get("answer", "")})
         elif message["sender"] == "user":
-            history.append({"role": "user", "content": message["text"]})
+            history.append({"role": "user", "content": message.get("text","")})
         elif message["sender"] == "error":
             history.pop()
-    logging.info(f"История диалога загружена. Всего сообщений: {len(history)}\n{history}")
+    logging.info(f"История диалога загружена. Всего сообщений: {len(history)}")
     return history
 
 
@@ -82,7 +82,9 @@ def save_history(answer):
     HISTORY_FILE["messages"].append({
         'id': int(time.time() * 1000),  # Уникальный ID
         'sender': 'ai',
-        'text': answer,
+        "reasoning": answer['choices'][0]['message']['reasoning'],
+        "answer": answer['choices'][0]['message']['content'],
+        'text': f"[THOUGHTS] \n{answer['choices'][0]['message']['reasoning']} \n[/THOUGHTS] \n{answer['choices'][0]['message']['content']}",
         'timestamp': datetime.now().isoformat()
     })
     with open(HISTORY_PATH, "w", encoding="utf-8") as f:
@@ -106,44 +108,61 @@ def send_message_api(history):
     
     try:
         logging.info("Отправка сообщения в API...")
-        response = requests.post(API_URL, headers=headers, json=data, timeout=30)
+        response = requests.post(API_URL, headers=headers, json=data, timeout=60)
         response.raise_for_status()
         result = response.json()
         logging.info(f"Ответ от API успешно получен.\n{result}")
-        return result['choices'][0]['message']['content']
+        return result
     
     except requests.exceptions.RequestException as e:
         logging.error(f"Ошибка сети при запросе: {e}")
         err = str(e)
         error_answer = f"Ошибка сети при запросе: {err}\n"
-        response = requests.post(API_URL, headers=headers, json=data, timeout=30)
+        response = e.response or response
+        response_json = None
+        if response is not None:
+            try:
+                response_json = response.json()
+            except ValueError:
+                response_json = None
         if "429" in err:
             error_answer += "Выбранная модель сейчас недоступна из-за высокой нагрузки или тот ключ, котрый вам выпал врмено не работате попробуйте перезапустить. Попробуйте выбрать другую или попробйте позже."
             try:
-                now_utc = datetime.datetime.utcnow()
-                reset_time_utc = datetime.datetime.utcfromtimestamp(response['error']['metadata']['headers']['X-RateLimit-Reset'] / 1000)
-                API_KEYS_P.append(API_KEYS_P.pop(0))
-                logging.error(f"Сброс лимита произойдет:{reset_time_utc}. Ключ заработатет через {reset_time_utc-now_utc} ")
+                now_utc = datetime.utcnow()
+                reset_ts = None
+                if response_json:
+                    reset_ts = (
+                        response_json.get('error', {})
+                        .get('metadata', {})
+                        .get('headers', {})
+                        .get('X-RateLimit-Reset')
+                    )
+                if reset_ts:
+                    reset_time_utc = datetime.utcfromtimestamp(reset_ts / 1000)
+                    logging.error(f"Сброс лимита произойдет:{reset_time_utc}. Ключ заработатет через {reset_time_utc-now_utc} ")
             finally:
+                API_KEYS_P.append(API_KEYS_P.pop(0))
                 with open("api_keys.json", "w", encoding="utf-8") as f:
                     json.dump(API_KEYS_P, f, ensure_ascii=False, indent=4)
-        elif "502" in err: error_answer += "К сожалению, сервера сейчас перегружены. Попробуйте позже или выберите другую модель."
-        elif "404" in err: error_answer += "К сожалению, выбранная вами модель больше не поддерживается. Пожалуйста, выберите другую."
+        elif "502" in err:
+            error_answer += "К сожалению, сервера сейчас перегружены. Попробуйте позже или выберите другую модель."
+        elif "404" in err:
+            error_answer += "К сожалению, выбранная вами модель больше не поддерживается. Пожалуйста, выберите другую."
         logging.error(f"Ошибка сети при запросе: {response.json()}")
         HISTORY_FILE["messages"].append({
-        'id': int(time.time() * 1000),  # Уникальный ID
-        'sender': 'error',
-        'text': error_answer,
-        'timestamp': datetime.now().isoformat()
+            'id': int(time.time() * 1000),
+            'sender': 'error',
+            'text': error_answer,
+            'timestamp': datetime.now().isoformat()
         })
         with open(HISTORY_PATH, "w", encoding="utf-8") as f:
             json.dump(HISTORY_FILE, f, ensure_ascii=False, indent=2)
         return None
-    
+
     except KeyError:
         logging.error(f"Неверный формат ответа API: {response.text}")
         return None
-    
+
     finally:
         try:
             response_del = requests.delete(
@@ -153,6 +172,7 @@ def send_message_api(history):
             logging.info(f"API ключ удалён: {response_del.json()}")
         except Exception as e:
             logging.warning(f"Ошибка при удалении API ключа: {e}")
+
 
 
 def main():

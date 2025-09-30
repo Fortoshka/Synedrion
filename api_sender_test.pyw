@@ -132,22 +132,20 @@ def send_message_api(history, model):
         if "429" in err:
             error_answer += "Выбранная модель сейчас недоступна из-за высокой нагрузки или тот ключ, котрый вам выпал врмено не работате попробуйте перезапустить. Попробуйте выбрать другую или попробйте позже."
             try:
-                try:
-                    now_utc = datetime.utcnow()
-                    reset_ts = None
-                    if response_json:
-                        reset_ts = (
-                            response_json.get('error', {})
-                            .get('metadata', {})
-                            .get('headers', {})
-                            .get('X-RateLimit-Reset')
-                        )
-                    if reset_ts:
-                        reset_time_utc = datetime.utcfromtimestamp(reset_ts / 1000)
-                        logging.error(f"Сброс лимита произойдет:{reset_time_utc}. Ключ заработатет через {reset_time_utc-now_utc} ")
-                finally:
-                    API_KEYS_P.append(API_KEYS_P.pop(0))
+                now_utc = datetime.utcnow()
+                reset_ts = None
+                if response_json:
+                    reset_ts = (
+                        response_json.get('error', {})
+                        .get('metadata', {})
+                        .get('headers', {})
+                        .get('X-RateLimit-Reset')
+                    )
+                if reset_ts:
+                    reset_time_utc = datetime.utcfromtimestamp(reset_ts / 1000)
+                    logging.error(f"Сброс лимита произойдет:{reset_time_utc}. Ключ заработатет через {reset_time_utc-now_utc} ")
             finally:
+                API_KEYS_P.append(API_KEYS_P.pop(0))
                 with open(API_KEYS_PATH, "w", encoding="utf-8") as f:
                     json.dump(API_KEYS_P, f, ensure_ascii=False, indent=4)
         elif "502" in err:

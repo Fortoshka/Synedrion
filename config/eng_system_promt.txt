@@ -46,4 +46,3 @@ Goal: Responses must be strictly within blocks. Any text outside of blocks is pr
 * At the end of this [INSTRUCTION] block, but strictly before `[/INSTRUCTION]`, a user system prompt may be included in the format `[USERPROMPT] ... [/USERPROMPT]`.
   It is considered by the AI equally with the instruction.
   It may be empty.
-
