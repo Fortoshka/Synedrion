@@ -41,6 +41,7 @@ HISTORY_FILE = load_json(HISTORY_PATH)
 
 USER_SYSTEM_PROMPT = HISTORY_FILE["system_prompt"]
 MODEL = HISTORY_FILE["model"]
+REASONING_MAX = HISTORY_FILE["reasoning_len"]
 API_KEYS_P = load_json("api_keys.json")
 
 BASE_SYSTEM_PROMPT = open(os.path.join(os.path.dirname(__file__), "config", "system_promt.txt"), "r", encoding="utf-8").read()
@@ -76,7 +77,6 @@ def load_history():
     logging.info(f"История диалога загружена. Всего сообщений: {len(history)}")
     return history
 
-
 def save_history(answer):
     """Сохраняет историю диалога в файл"""
     HISTORY_FILE["messages"].append({
@@ -102,7 +102,7 @@ def send_message_api(history):
         "model": MODEL, 
         "messages": history,
         "reasoning": {
-            "max_tokens": 1000
+            "max_tokens": REASONING_MAX
             }
         }
     
