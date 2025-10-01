@@ -1049,3 +1049,133 @@ input:checked + .slider:before {
         transform: scale(1);
     }
 }
+
+.ai-loading-indicator {
+    display: flex;
+    align-items: center;
+    padding: 15px;
+    border-radius: 18px;
+    margin: 10px 0;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    position: relative;
+    overflow: hidden;
+    min-height: 60px;
+}
+
+.ai-loading-content {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    gap: 10px;
+}
+
+.ai-loading-line {
+    height: 16px;
+    border-radius: 8px;
+    background: linear-gradient(90deg, 
+        rgba(255, 255, 255, 0.1) 0%, 
+        rgba(255, 255, 255, 0.3) 50%, 
+        rgba(255, 255, 255, 0.1) 100%);
+    background-size: 200% 100%;
+    animation: loadingShimmer 1.5s infinite linear;
+    opacity: 0.7;
+}
+
+.ai-loading-line.short {
+    width: 70%;
+}
+
+.ai-loading-line.medium {
+    width: 90%;
+}
+
+.ai-loading-line.long {
+    width: 100%;
+}
+
+/* Анимация переливания */
+@keyframes loadingShimmer {
+    0% {
+        background-position: -200% 0;
+    }
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+/* Анимация пульсации */
+@keyframes loadingPulse {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 0.7;
+    }
+    50% {
+        transform: scale(1.02);
+        opacity: 0.9;
+    }
+}
+
+.ai-loading-indicator {
+    animation: loadingPulse 2s infinite ease-in-out;
+}
+
+/* Стили для тем (переменные уже определены в основном CSS) */
+/* Светлая тема */
+[data-theme="light"] .ai-loading-indicator {
+    background: rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="light"] .ai-loading-line {
+    background: linear-gradient(90deg, 
+        rgba(0, 0, 0, 0.1) 0%, 
+        rgba(0, 0, 0, 0.3) 50%, 
+        rgba(0, 0, 0, 0.1) 100%);
+    background-size: 200% 100%;
+}
+
+/* Темная тема */
+[data-theme="dark"] .ai-loading-indicator {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .ai-loading-line {
+    background: linear-gradient(90deg, 
+        rgba(255, 255, 255, 0.1) 0%, 
+        rgba(255, 255, 255, 0.3) 50%, 
+        rgba(255, 255, 255, 0.1) 100%);
+    background-size: 200% 100%;
+}
+
+/* Синяя тема (по умолчанию) */
+[data-theme="blue"] .ai-loading-indicator {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+[data-theme="blue"] .ai-loading-line {
+    background: linear-gradient(90deg, 
+        rgba(255, 255, 255, 0.1) 0%, 
+        rgba(255, 255, 255, 0.3) 50%, 
+        rgba(255, 255, 255, 0.1) 100%);
+    background-size: 200% 100%;
+}
+
+/* Адаптивность для индикатора загрузки */
+@media (max-width: 480px) {
+    .ai-loading-indicator {
+        padding: 12px;
+        border-radius: 15px;
+    }
+    
+    .ai-loading-line {
+        height: 14px;
+        border-radius: 7px;
+    }
+    
+    .ai-loading-content {
+        gap: 8px;
+    }
+}

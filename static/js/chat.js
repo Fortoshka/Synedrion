@@ -840,60 +840,94 @@ class SingleChat {
             if (response.ok) {
                 const updatedChatData = await response.json();
                 const newMessageCount = updatedChatData.messages ? updatedChatData.messages.length : 0;
-                
+
                 if (newMessageCount > this.lastMessageCount) {
                     // Добавляем новые сообщения в чат
                     for (let i = this.lastMessageCount; i < newMessageCount; i++) {
                         const newMessage = updatedChatData.messages[i];
-                        const isMessageAlreadyAdded = this.currentChatData.messages && 
+                        const isMessageAlreadyAdded = this.currentChatData.messages &&
                             this.currentChatData.messages.some(msg => msg.id === newMessage.id);
-                        
+
                         if (!isMessageAlreadyAdded) {
-                            this.addMessageToChat(newMessage);
+                            // Проверяем, является ли новое сообщение индикатором загрузки
+                            if (newMessage.sender === 'ai' && newMessage.text === '[LOADING]') {
+                                // Создаем анимированный индикатор загрузки
+                                const messagesContainer = document.getElementById('chat-messages');
+                                if (messagesContainer) {
+                                    const loadingElement = document.createElement('div');
+                                    loadingElement.className = 'message ai';
+                                    if (newMessage.id !== undefined) {
+                                        loadingElement.dataset.messageId = newMessage.id;
+                                    }
+                                    loadingElement.innerHTML = this.createLoadingIndicatorHTML();
+                                    messagesContainer.appendChild(loadingElement);
+                                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                                }
+                            } else {
+                                this.addMessageToChat(newMessage);
+                            }
                         }
                     }
-                    
+
                     // Обновляем данные чата и счетчик сообщений
                     this.currentChatData = updatedChatData;
                     this.lastMessageCount = newMessageCount;
-                    
+
                     // Прокручиваем вниз
                     const messagesElement = document.getElementById('chat-messages');
                     if (messagesElement) {
                         messagesElement.scrollTop = messagesElement.scrollHeight;
                     }
-                    
-                    // Проверяем, является ли последнее сообщение от ИИ
+
+                    // Проверяем состояние последнего сообщения
                     if (this.currentChatData.messages.length > 0) {
                         const lastMessage = this.currentChatData.messages[this.currentChatData.messages.length - 1];
-                        if (lastMessage.sender === 'ai') {
+                        if (lastMessage.sender === 'ai' && lastMessage.text !== '[LOADING]') {
                             this.isWaitingForAI = false;
                             const sendButton = document.getElementById('send-message-btn');
                             if (sendButton) {
                                 sendButton.disabled = false;
+                            }
+                        } else if (lastMessage.sender === 'ai' && lastMessage.text === '[LOADING]') {
+                            // Если последнее сообщение - индикатор загрузки, блокируем интерфейс
+                            this.isWaitingForAI = true;
+                            const sendButton = document.getElementById('send-message-btn');
+                            if (sendButton) {
+                                sendButton.disabled = true;
+                            }
+                        } else if (lastMessage.sender === 'user') {
+                            this.isWaitingForAI = true;
+                            const sendButton = document.getElementById('send-message-btn');
+                            if (sendButton) {
+                                sendButton.disabled = true;
                             }
                         }
                     }
                 } else {
                     // Обновляем данные чата, но не добавляем сообщения
                     this.currentChatData = updatedChatData;
-                    
-                    // Проверяем состояние ожидания на основе последнего сообщения
+
+                    // Проверяем состояние последнего сообщения
                     if (this.currentChatData.messages && this.currentChatData.messages.length > 0) {
                         const lastMessage = this.currentChatData.messages[this.currentChatData.messages.length - 1];
-                        // Если последнее сообщение от пользователя, значит ждем ИИ
-                        if (lastMessage.sender === 'user') {
+                        if (lastMessage.sender === 'ai' && lastMessage.text !== '[LOADING]') {
+                            this.isWaitingForAI = false;
+                            const sendButton = document.getElementById('send-message-btn');
+                            if (sendButton) {
+                                sendButton.disabled = false;
+                            }
+                        } else if (lastMessage.sender === 'ai' && lastMessage.text === '[LOADING]') {
+                            // Если последнее сообщение - индикатор загрузки, блокируем интерфейс
                             this.isWaitingForAI = true;
                             const sendButton = document.getElementById('send-message-btn');
                             if (sendButton) {
                                 sendButton.disabled = true;
                             }
-                        } else if (lastMessage.sender === 'ai') {
-                            // Если последнее сообщение от ИИ, можно отправлять
-                            this.isWaitingForAI = false;
+                        } else if (lastMessage.sender === 'user') {
+                            this.isWaitingForAI = true;
                             const sendButton = document.getElementById('send-message-btn');
                             if (sendButton) {
-                                sendButton.disabled = false;
+                                sendButton.disabled = true;
                             }
                         }
                     }
@@ -910,12 +944,7 @@ class SingleChat {
 
         const titleElement = document.getElementById('current-chat-title');
         if (titleElement) {
-            // Ограничиваем длину названия в заголовке чата
-            let displayTitle = this.currentChatData.title || 'Без названия';
-            if (displayTitle.length > 30) {
-                displayTitle = displayTitle.substring(0, 27) + '...';
-            }
-            titleElement.textContent = displayTitle;
+            titleElement.textContent = this.currentChatData.title || 'Без названия';
         }
 
         const messagesElement = document.getElementById('chat-messages');
@@ -923,9 +952,9 @@ class SingleChat {
             if (this.currentChatData.messages && this.currentChatData.messages.length > 0) {
                 messagesElement.innerHTML = '';
                 this.currentChatData.messages.forEach(message => {
-                    this.addMessageToChat(message);
+                    this.addMessageToChat(message); // Используем обновленную функцию
                 });
-                
+
                 if (this.currentChatData.messages.length > 0) {
                     const lastMessage = this.currentChatData.messages[this.currentChatData.messages.length - 1];
                     if (lastMessage.sender === 'user') {
@@ -935,10 +964,19 @@ class SingleChat {
                             sendButton.disabled = true;
                         }
                     } else if (lastMessage.sender === 'ai') {
-                        this.isWaitingForAI = false;
-                        const sendButton = document.getElementById('send-message-btn');
-                        if (sendButton) {
-                            sendButton.disabled = false;
+                        // Проверяем, не является ли последнее сообщение ИИ индикатором загрузки
+                        if (lastMessage.text === '[LOADING]') {
+                            this.isWaitingForAI = true;
+                            const sendButton = document.getElementById('send-message-btn');
+                            if (sendButton) {
+                                sendButton.disabled = true;
+                            }
+                        } else {
+                            this.isWaitingForAI = false;
+                            const sendButton = document.getElementById('send-message-btn');
+                            if (sendButton) {
+                                sendButton.disabled = false;
+                            }
                         }
                     }
                 }
@@ -950,21 +988,25 @@ class SingleChat {
                     sendButton.disabled = false;
                 }
             }
-            
+
             messagesElement.scrollTop = messagesElement.scrollHeight;
         }
 
         const inputElement = document.getElementById('message-input');
         const sendButton = document.getElementById('send-message-btn');
-        
+
         if (inputElement) {
             inputElement.disabled = false;
             inputElement.placeholder = 'Введите ваше сообщение...';
         }
-        
+
         if (sendButton) {
             sendButton.disabled = this.isWaitingForAI;
         }
+
+        // Инициализируем обработчики для кнопок копирования кода и сворачивания мыслей
+        this.initCodeCopyButtons();
+        this.initThoughtsToggles();
     }
 
     // Очистка чата
@@ -1001,6 +1043,19 @@ class SingleChat {
         this.loadChatsList();
     }
 
+
+    createLoadingIndicatorHTML() {
+        return `
+            <div class="ai-loading-indicator">
+                <div class="ai-loading-content">
+                    <div class="ai-loading-line long"></div>
+                    <div class="ai-loading-line medium"></div>
+                    <div class="ai-loading-line short"></div>
+                </div>
+            </div>
+        `;
+    }
+
     // Добавление сообщения в чат
     addMessageToChat(message) {
         const messagesElement = document.getElementById('chat-messages');
@@ -1033,54 +1088,65 @@ class SingleChat {
             }
         }
 
-        // Определяем отправителя
-        let senderName = '';
-        if (message.sender === 'user') {
-            // Для сообщений пользователя не показываем заголовок "Вы"
-            senderName = '';
+        // Проверяем, является ли сообщение сообщением-заглушкой [LOADING]
+        if (message.sender === 'ai' && message.text === '[LOADING]') {
+            // Применяем специальный класс для анимации загрузки
+            messageElement.className = 'message ai loading';
+            // Добавляем внутренний элемент для эффекта сияния
+            messageElement.innerHTML = `
+                <div class="loading-shine"></div>
+                ${timestampHtml}
+            `;
         } else {
-            // Для сообщений ИИ показываем название модели
-            if (this.currentChatData && this.currentChatData.model) {
-                senderName = this.getModelDisplayName(this.currentChatData.model);
+            // Определяем отправителя
+            let senderName = '';
+            if (message.sender === 'user') {
+                // Для сообщений пользователя не показываем заголовок "Вы"
+                senderName = '';
             } else {
-                senderName = 'ИИ';
-            }
-        }
-        
-        // Для сообщений ИИ добавляем кнопку перегенерации и обрабатываем теги
-        if (message.sender === 'ai') {
-            // Сначала обрабатываем все теги (THOUGHTS, RESPONSE, CODE)
-            const processedContent = this.processAllAITags(message.text);
-            
-            // Формируем HTML с заголовком модели
-            let headerHtml = '';
-            if (senderName) {
-                headerHtml = `<div class="sender">${senderName}</div>`;
+                // Для сообщений ИИ показываем название модели
+                if (this.currentChatData && this.currentChatData.model) {
+                    senderName = this.getModelDisplayName(this.currentChatData.model);
+                } else {
+                    senderName = 'ИИ';
+                }
             }
             
-            messageElement.innerHTML = `
-                ${headerHtml}
-                <div class="message-content">
-                    ${processedContent}
-                </div>
-                <button class="regenerate-btn" data-message-id="${message.id}">↻ Перегенерировать</button>
-                ${timestampHtml}
-            `;
-            
-            // Добавляем обработчик для кнопки перегенерации
-            const regenerateBtn = messageElement.querySelector('.regenerate-btn');
-            regenerateBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.regenerateMessage(message.id); 
-            });
-        } else {
-            // Для сообщений пользователя не показываем заголовок
-            messageElement.innerHTML = `
-                <div class="message-content">
-                    <div class="text">${this.escapeHtml(message.text)}</div>
-                </div>
-                ${timestampHtml}
-            `;
+            // Для сообщений ИИ добавляем кнопку перегенерации и обрабатываем теги
+            if (message.sender === 'ai') {
+                // Сначала обрабатываем все теги (THOUGHTS, RESPONSE, CODE)
+                const processedContent = this.processAllAITags(message.text);
+                
+                // Формируем HTML с заголовком модели
+                let headerHtml = '';
+                if (senderName) {
+                    headerHtml = `<div class="sender">${senderName}</div>`;
+                }
+                
+                messageElement.innerHTML = `
+                    ${headerHtml}
+                    <div class="message-content">
+                        ${processedContent}
+                    </div>
+                    <button class="regenerate-btn" data-message-id="${message.id}">↻ Перегенерировать</button>
+                    ${timestampHtml}
+                `;
+                
+                // Добавляем обработчик для кнопки перегенерации
+                const regenerateBtn = messageElement.querySelector('.regenerate-btn');
+                regenerateBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.regenerateMessage(message.id); 
+                });
+            } else {
+                // Для сообщений пользователя не показываем заголовок
+                messageElement.innerHTML = `
+                    <div class="message-content">
+                        <div class="text">${this.escapeHtml(message.text)}</div>
+                    </div>
+                    ${timestampHtml}
+                `;
+            }
         }
         
         messagesElement.appendChild(messageElement);
