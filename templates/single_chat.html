@@ -70,7 +70,7 @@
             <div class="modal-body">
                 <div class="form-group">
                     <label for="chat-title">Название чата:</label>
-                    <input type="text" id="chat-title" placeholder="Введите название чата" required>
+                    <input type="text" id="chat-title" placeholder="Введите название чата" required class="chat-name">
                 </div>
                 
                 <div class="form-group">
@@ -84,6 +84,18 @@
                     <label for="system-prompt">Системный промпт (необязательно):</label>
                     <textarea id="system-prompt" placeholder="Введите системный промпт для ИИ..." rows="3"></textarea>
                 </div>
+                
+                <!-- НОВЫЙ ЭЛЕМЕНТ: Ползунок длины рассуждения -->
+                <div class="form-group">
+                    <label for="reasoning-len">Максимальная длина рассуждения ИИ (токены): 
+                        <span id="reasoning-len-value">1000</span>
+                    </label>
+                    <div class="slider-container">
+                        <input type="range" id="reasoning-len-slider" min="0" max="2500" value="1000" step="10" class="slider-slider">
+                        <input type="number" id="reasoning-len-input" min="0" max="2500" value="1000" class="slider-input">
+                    </div>
+                </div>
+                <!-- КОНЕЦ НОВОГО ЭЛЕМЕНТА -->
                 
                 <div class="modal-actions">
                     <button id="create-chat-confirm" class="btn primary-btn small-btn">
@@ -109,7 +121,7 @@
                 
                 <div class="form-group">
                     <label for="settings-chat-title">Название чата:</label>
-                    <input type="text" id="settings-chat-title" placeholder="Введите название чата" required>
+                    <input type="text" id="settings-chat-title" placeholder="Введите название чата" required class="chat-name">
                 </div>
                 
                 <div class="form-group">
@@ -124,8 +136,20 @@
                     <textarea id="settings-system-prompt" placeholder="Введите системный промпт для ИИ..." rows="3"></textarea>
                 </div>
                 
+                <!-- НОВЫЙ ЭЛЕМЕНТ: Ползунок длины рассуждения в настройках -->
+                <div class="form-group">
+                    <label for="reasoning-len">Максимальная длина рассуждения ИИ (токены): 
+                        <span id="reasoning-len-value">1000</span>
+                    </label>
+                    <div class="slider-container">
+                        <input type="range" id="reasoning-len-slider" min="0" max="2500" value="1000" step="10" class="slider-slider">
+                        <input type="number" id="reasoning-len-input" min="0" max="2500" value="1000" class="slider-input">
+                    </div>
+                </div>
+                <!-- КОНЕЦ НОВОГО ЭЛЕМЕНТА -->
+                
                 <div class="modal-actions">
-                    <button id="delete-chat-btn" class="btn small-btn danger-btn">
+                    <button id="delete-chat-btn" class="btn danger-btn small-btn">
                         <span class="btn-text">Удалить чат</span>
                     </button>
                     <div style="flex: 1;"></div>

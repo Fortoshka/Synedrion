@@ -12,6 +12,7 @@ import subprocess
 app = Flask(__name__)
 
 SETTINGS_FILE = 'settings.json'
+DEVLOG_FILE_PATH = os.path.join(os.path.dirname(__file__), 'devlog.html')
 
 DEFAULT_SETTINGS = {
     "fullscreen": False,
@@ -236,9 +237,12 @@ def create_new_chat():
     try:
         data = request.get_json()
         title = data.get('title', 'Новый чат')
-        model = data.get('model', '')  # Получаем выбранную модель
-        system_prompt = data.get('system_prompt', '')  # Получаем системный промпт
-        messages = data.get('messages', [])  # Получаем историю сообщений (если есть)
+        model = data.get('model', '')
+        system_prompt = data.get('system_prompt', '')
+        # Получаем reasoning_len из данных, по умолчанию 1000
+        reasoning_len = data.get('reasoning_len', 1000)
+        # Убеждаемся, что значение в допустимом диапазоне
+        reasoning_len = max(0, min(2500, int(reasoning_len))) 
         
         # Генерируем уникальный ID для чата
         chat_id = str(uuid.uuid4())
@@ -248,11 +252,12 @@ def create_new_chat():
         new_chat = {
             'id': chat_id,
             'title': title,
-            'model': model,  # Сохраняем выбранную модель
-            'system_prompt': system_prompt if system_prompt else None,  # Сохраняем системный промпт
+            'model': model,
+            'system_prompt': system_prompt if system_prompt else None,
+            'reasoning_len': reasoning_len, # Добавляем новое поле
             'created_at': datetime.now().isoformat(),
             'updated_at': datetime.now().isoformat(),
-            'messages': messages  # Сохраняем историю сообщений
+            'messages': []
         }
         
         # Сохраняем чат в файл
@@ -279,23 +284,29 @@ def get_chat(chat_id):
 
 @app.route('/api/chats/<chat_id>', methods=['PUT'])
 def update_chat(chat_id):
-    """Обновить данные чата (например, добавить сообщение)"""
+    """Обновить чат"""
     try:
+        data = request.get_json()
         file_path = os.path.join(CHATS_DIR, f"{chat_id}.json")
+        
         if not os.path.exists(file_path):
             return jsonify({'error': 'Чат не найден'}), 404
-        
-        # Получаем обновленные данные чата
-        updated_data = request.get_json()
+            
+        # Получаем reasoning_len из данных, по умолчанию 1000 если не указано
+        reasoning_len = data.get('reasoning_len', 1000)
+        # Убеждаемся, что значение в допустимом диапазоне
+        reasoning_len = max(0, min(2500, int(reasoning_len)))
+        # Добавляем проверенное значение обратно в данные
+        data['reasoning_len'] = reasoning_len
         
         # Обновляем время изменения
-        updated_data['updated_at'] = datetime.now().isoformat()
+        data['updated_at'] = datetime.now().isoformat()
         
         # Сохраняем обновленные данные
         with open(file_path, 'w', encoding='utf-8') as f:
-            json.dump(updated_data, f, ensure_ascii=False, indent=2)
-        
-        return jsonify(updated_data)
+            json.dump(data, f, ensure_ascii=False, indent=2)
+            
+        return jsonify(data)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -399,6 +410,63 @@ def create_request():
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+    
+@app.route('/api/devlog')
+def get_devlog():
+    """Получить содержимое файла devlog.html без первой строки (комментария)"""
+    try:
+        if os.path.exists(DEVLOG_FILE_PATH):
+            with open(DEVLOG_FILE_PATH, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+            
+            if not lines:
+                 # Если файл пустой
+                return jsonify({'content': '', 'shouldShow': False}), 204
+
+            # Проверяем первую строку на наличие комментария //show = false
+            first_line = lines[0].strip() if lines else ""
+            should_show = "//show = false" not in first_line
+            
+            # Если нужно показывать, возвращаем содержимое БЕЗ первой строки
+            if should_show:
+                # Объединяем все строки, кроме первой
+                content_without_first_line = "".join(lines[1:]) if len(lines) > 1 else ""
+                return jsonify({
+                    'content': content_without_first_line, # Отправляем без первой строки
+                    'shouldShow': True
+                })
+            else:
+                # Если не нужно показывать, можно отправить пустой контент
+                return jsonify({'content': '', 'shouldShow': False})
+        else:
+            # Если файла нет, возвращаем пустой ответ
+            return jsonify({'content': '', 'shouldShow': False}), 204
+    except Exception as e:
+        print(f"Ошибка чтения devlog.html: {e}")
+        return jsonify({'error': 'Ошибка чтения файла devlog'}), 500
+
+# Новый API endpoint для обновления комментария в devlog
+@app.route('/api/devlog/hide', methods=['POST'])
+def hide_devlog():
+    """Обновить комментарий в devlog.html, чтобы он больше не показывался"""
+    try:
+        if os.path.exists(DEVLOG_FILE_PATH):
+            with open(DEVLOG_FILE_PATH, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+            
+            if lines:
+                # Заменяем первую строку на комментарий, предотвращающий показ
+                lines[0] = "//show = false\n"
+                
+                with open(DEVLOG_FILE_PATH, 'w', encoding='utf-8') as f:
+                    f.writelines(lines)
+                    
+            return jsonify({'success': True})
+        else:
+            return jsonify({'error': 'Файл devlog.html не найден'}), 404
+    except Exception as e:
+        print(f"Ошибка обновления devlog.html: {e}")
+        return jsonify({'error': 'Ошибка обновления файла devlog'}), 500
 
 def call_ai_api(message):
     return f"Это ответ ИИ на ваше сообщение: '{message}'. Не переживайте, однажды эта заглушка сменится на нормальный ответ."

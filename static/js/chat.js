@@ -66,6 +66,8 @@ class SingleChat {
         const cancelBtn = document.getElementById('cancel-create-chat');
         const confirmBtn = document.getElementById('create-chat-confirm');
         
+        this.initReasoningLenControls(modal);
+
         // Закрытие модального окна
         const closeModal = () => {
             modal.style.display = 'none';
@@ -102,6 +104,8 @@ class SingleChat {
         const cancelBtn = document.getElementById('cancel-chat-settings');
         const saveBtn = document.getElementById('save-chat-settings');
         const deleteBtn = document.getElementById('delete-chat-btn'); // Кнопка удаления
+
+        this.initReasoningLenControls(modal);
         
         // Закрытие модального окна
         const closeModal = () => {
@@ -135,6 +139,54 @@ class SingleChat {
                 closeModal();
             }
         });
+    }
+
+    initReasoningLenControls(modal) {
+        if (!modal) return;
+        
+        // Для создания чата
+        const slider = modal.querySelector('#reasoning-len-slider');
+        const input = modal.querySelector('#reasoning-len-input');
+        const valueDisplay = modal.querySelector('#reasoning-len-value');
+        
+        // Для настроек чата
+        const settingsSlider = modal.querySelector('#settings-reasoning-len-slider');
+        const settingsInput = modal.querySelector('#settings-reasoning-len-input');
+        const settingsValueDisplay = modal.querySelector('#settings-reasoning-len-value');
+        
+        // Функция для настройки одного набора элементов
+        const setupControlSet = (s, i, vd) => {
+            if (s && i && vd) {
+                // Синхронизация ползунка с числовым полем
+                s.addEventListener('input', () => {
+                    const value = s.value;
+                    i.value = value;
+                    vd.textContent = value;
+                });
+                
+                // Синхронизация числового поля с ползунком
+                i.addEventListener('input', () => {
+                    let value = parseInt(i.value) || 0;
+                    // Ограничиваем значение диапазоном
+                    value = Math.max(0, Math.min(2500, value));
+                    i.value = value;
+                    s.value = value;
+                    vd.textContent = value;
+                });
+                
+                // Предотвращаем ввод нечисловых значений
+                i.addEventListener('keypress', (e) => {
+                    if (!/[0-9]/.test(e.key) && e.key !== 'Backspace' && e.key !== 'Delete' && e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') {
+                        e.preventDefault();
+                    }
+                });
+            }
+        };
+        
+        // Настройка для создания чата
+        setupControlSet(slider, input, valueDisplay);
+        // Настройка для настроек чата
+        setupControlSet(settingsSlider, settingsInput, settingsValueDisplay);
     }
 
     // Функция удаления чата (НОВАЯ функция)
@@ -260,11 +312,21 @@ class SingleChat {
         const modelSelect = document.getElementById('chat-model');
         const titleInput = document.getElementById('chat-title');
         const systemPromptInput = document.getElementById('system-prompt');
+        // НОВОЕ: Получаем элементы управления длиной рассуждения
+        const slider = document.getElementById('reasoning-len-slider');
+        const input = document.getElementById('reasoning-len-input');
+        const valueDisplay = document.getElementById('reasoning-len-value');
         
         // Очищаем поля
         titleInput.value = '';
         systemPromptInput.value = '';
         modelSelect.innerHTML = '<option value="">Загрузка моделей...</option>';
+        // НОВОЕ: Устанавливаем значения по умолчанию для ползунка
+        if (slider && input && valueDisplay) {
+            slider.value = 1000;
+            input.value = 1000;
+            valueDisplay.textContent = 1000;
+        }
         
         // Загружаем список моделей
         try {
@@ -306,15 +368,14 @@ class SingleChat {
         const titleInput = document.getElementById('chat-title');
         const modelSelect = document.getElementById('chat-model');
         const systemPromptInput = document.getElementById('system-prompt');
+        // НОВОЕ: Получаем значение длины рассуждения
+        const reasoningLenInput = document.getElementById('reasoning-len-input');
         
-        let title = titleInput.value.trim();
+        const title = titleInput.value.trim();
         const modelUrl = modelSelect.value;
         const systemPrompt = systemPromptInput.value.trim();
-        
-        // Ограничиваем длину названия чата до 50 символов
-        if (title.length > 50) {
-            title = title.substring(0, 50);
-        }
+        // НОВОЕ: Получаем значение reasoning_len
+        const reasoningLen = parseInt(reasoningLenInput.value) || 1000;
         
         if (!title) {
             alert('Пожалуйста, введите название чата');
@@ -336,7 +397,8 @@ class SingleChat {
                 body: JSON.stringify({
                     title: title,
                     model: modelUrl,
-                    system_prompt: systemPrompt || undefined // Не добавляем, если пустой
+                    system_prompt: systemPrompt || undefined,
+                    reasoning_len: reasoningLen // НОВОЕ: Добавляем reasoning_len
                 })
             });
             
@@ -369,6 +431,10 @@ class SingleChat {
         const titleInput = document.getElementById('settings-chat-title');
         const modelSelect = document.getElementById('settings-chat-model');
         const systemPromptInput = document.getElementById('settings-system-prompt');
+        // НОВОЕ: Получаем элементы управления длиной рассуждения
+        const slider = document.getElementById('settings-reasoning-len-slider');
+        const input = document.getElementById('settings-reasoning-len-input');
+        const valueDisplay = document.getElementById('settings-reasoning-len-value');
         
         // Загружаем данные чата
         try {
@@ -380,6 +446,13 @@ class SingleChat {
                 chatIdInput.value = chatData.id;
                 titleInput.value = chatData.title || '';
                 systemPromptInput.value = chatData.system_prompt || '';
+                // НОВОЕ: Устанавливаем значение reasoning_len
+                const reasoningLen = chatData.reasoning_len !== undefined ? chatData.reasoning_len : 1000;
+                if (slider && input && valueDisplay) {
+                    slider.value = reasoningLen;
+                    input.value = reasoningLen;
+                    valueDisplay.textContent = reasoningLen;
+                }
                 
                 // Загружаем список моделей
                 const settingsResponse = await fetch('/api/settings');
@@ -417,16 +490,15 @@ class SingleChat {
         const titleInput = document.getElementById('settings-chat-title');
         const modelSelect = document.getElementById('settings-chat-model');
         const systemPromptInput = document.getElementById('settings-system-prompt');
+        // НОВОЕ: Получаем значение длины рассуждения
+        const reasoningLenInput = document.getElementById('settings-reasoning-len-input');
         
         const chatId = chatIdInput.value;
-        let title = titleInput.value.trim();
+        const title = titleInput.value.trim();
         const modelUrl = modelSelect.value;
         const systemPrompt = systemPromptInput.value.trim();
-        
-        // Ограничиваем длину названия чата до 50 символов
-        if (title.length > 50) {
-            title = title.substring(0, 50);
-        }
+        // НОВОЕ: Получаем значение reasoning_len
+        const reasoningLen = parseInt(reasoningLenInput.value) || 1000;
         
         if (!title) {
             alert('Пожалуйста, введите название чата');
@@ -447,7 +519,9 @@ class SingleChat {
                 // Обновляем данные
                 chatData.title = title;
                 chatData.model = modelUrl;
-                chatData.system_prompt = systemPrompt || undefined; // Не добавляем, если пустой
+                chatData.system_prompt = systemPrompt || undefined;
+                // НОВОЕ: Обновляем reasoning_len
+                chatData.reasoning_len = reasoningLen;
                 
                 // Сохраняем обновленные данные
                 const updateResponse = await fetch(`/api/chats/${chatId}`, {
@@ -464,12 +538,7 @@ class SingleChat {
                         this.currentChatData = chatData;
                         const titleElement = document.getElementById('current-chat-title');
                         if (titleElement) {
-                            // Ограничиваем длину названия в заголовке чата
-                            let displayTitle = title;
-                            if (displayTitle.length > 30) {
-                                displayTitle = displayTitle.substring(0, 27) + '...';
-                            }
-                            titleElement.textContent = displayTitle;
+                            titleElement.textContent = title;
                         }
                     }
                     
@@ -687,16 +756,15 @@ class SingleChat {
 
     createCodeBlockHTML(language, codeContent) {
         // Разбиваем код на строки
-        const lines = codeContent.split('\n'); // Исправлено: правильно разбиваем по \n
+        const lines = codeContent.split('\n');
         
         // Создаем HTML для пронумерованных строк
         let linesHtml = '';
         lines.forEach((line, index) => {
-            // Используем escapeHtml вместо escapeHtmlForCode для консистентности
             linesHtml += `
                 <div class="ai-code-line">
                     <div class="ai-code-line-number">${index + 1}</div>
-                    <div class="ai-code-line-content">${this.escapeHtml(line)}</div>
+                    <div class="ai-code-line-content">${this.escapeHtmlForCode(line)}</div>
                 </div>
             `;
         });
@@ -708,7 +776,7 @@ class SingleChat {
             <div class="ai-code-block">
                 <div class="ai-code-header">
                     <div class="ai-code-language">${this.escapeHtml(language)}</div>
-                    <button class="ai-code-copy-btn" id="${copyButtonId}" data-code="${this.escapeHtml(codeContent).replace(/"/g, '&quot;')}">
+                    <button class="ai-code-copy-btn" id="${copyButtonId}" data-code="${this.escapeHtmlForCode(codeContent).replace(/"/g, '&quot;')}">
                         Копировать
                     </button>
                 </div>
@@ -946,7 +1014,26 @@ class SingleChat {
             messageElement.dataset.messageId = message.id;
         }
         
-        // Для сообщений ИИ используем название модели вместо "ИИ"
+        // Форматируем время из timestamp
+        let timestampHtml = '';
+        if (message.timestamp) {
+            try {
+                const date = new Date(message.timestamp);
+                // Форматируем время как HH:MM
+                const formattedTime = date.toLocaleTimeString('ru-RU', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                    // second: '2-digit' // Можно добавить секунды, если нужно
+                });
+                timestampHtml = `<div class="message-timestamp">${formattedTime}</div>`;
+            } catch (e) {
+                console.log('Ошибка форматирования времени сообщения:', e);
+                // В случае ошибки показываем сырую строку времени
+                timestampHtml = `<div class="message-timestamp">${message.timestamp}</div>`;
+            }
+        }
+
+        // Определяем отправителя
         let senderName = '';
         if (message.sender === 'user') {
             // Для сообщений пользователя не показываем заголовок "Вы"
@@ -954,7 +1041,6 @@ class SingleChat {
         } else {
             // Для сообщений ИИ показываем название модели
             if (this.currentChatData && this.currentChatData.model) {
-                // Извлекаем название модели из URL
                 senderName = this.getModelDisplayName(this.currentChatData.model);
             } else {
                 senderName = 'ИИ';
@@ -978,6 +1064,7 @@ class SingleChat {
                     ${processedContent}
                 </div>
                 <button class="regenerate-btn" data-message-id="${message.id}">↻ Перегенерировать</button>
+                ${timestampHtml}
             `;
             
             // Добавляем обработчик для кнопки перегенерации
@@ -992,6 +1079,7 @@ class SingleChat {
                 <div class="message-content">
                     <div class="text">${this.escapeHtml(message.text)}</div>
                 </div>
+                ${timestampHtml}
             `;
         }
         
@@ -1000,6 +1088,9 @@ class SingleChat {
         
         // Инициализируем обработчики для кнопок копирования кода
         this.initCodeCopyButtons();
+        
+        // Инициализируем обработчики для сворачивания мыслей (если есть)
+        this.initThoughtsToggles();
     }
 
     getModelDisplayName(modelUrl) {
@@ -1032,80 +1123,154 @@ class SingleChat {
 
     processAllAITags(text) {
         let result = '';
-        let remainingText = text;
-
-        // 1. Сначала обрабатываем все блоки кода
-        const codeBlocks = [];
-        let codeIndex = 0;
         
-        // Регулярное выражение для поиска тегов [CODE:language]...[/CODE]
-        const codeRegex = /\[CODE:\s*([^\]]+?)\]([\s\S]*?)\[\/CODE\]/g;
-        
-        // Заменяем все найденные теги кода на плейсхолдеры
-        remainingText = remainingText.replace(codeRegex, (match, language, codeContent) => {
-            // Очищаем содержимое кода от лишних пробелов в начале и конце
-            const trimmedCode = codeContent.trim();
-            
-            // Сохраняем информацию о блоке кода
-            codeBlocks.push({
-                language: language.trim(),
-                code: trimmedCode
-            });
-            
-            // Возвращаем плейсхолдер
-            return `{{CODE_BLOCK_${codeIndex++}}}`;
-        });
-
-        // 2. Обработка [THOUGHTS]
-        const thoughtsRegex = /\[THOUGHTS\]([\s\S]*?)\[\/THOUGHTS\]/;
-        const thoughtsMatch = thoughtsRegex.exec(remainingText);
-        if (thoughtsMatch) {
-            const thoughtsContent = thoughtsMatch[1].trim();
-            result += `<div class="ai-thoughts"><span class="ai-thoughts-label">Мысли:</span> ${this.escapeHtml(thoughtsContent)}</div>`;
-            // Удаляем обработанный тег из оставшегося текста
-            remainingText = remainingText.replace(thoughtsMatch[0], '');
+        // Проверка на наличие тегов. Если их нет, выводим как обычный текст.
+        if (!text.includes('[')) {
+            return `<div class="text">${this.escapeHtml(text)}</div>`;
         }
 
-        // 3. Обработка [RESPONSE]
-        const responseRegex = /\[RESPONSE\]([\s\S]*?)\[\/RESPONSE\]/;
-        const responseMatch = responseRegex.exec(remainingText);
+        // 1. Извлечение и обработка [THOUGHTS] - теперь с поддержкой сворачивания
+        let thoughtsHtml = '';
+        const thoughtsRegex = /\[THOUGHTS\]([\s\S]*?)\[\/THOUGHTS\]/;
+        const thoughtsMatch = thoughtsRegex.exec(text);
+        if (thoughtsMatch) {
+            let thoughtsContent = thoughtsMatch[1];
+            // ИСПРАВЛЕНИЕ: Тщательно очищаем содержимое от лишних пробелов
+            // a. Удаляем начальные и конечные пробельные символы (включая \n)
+            thoughtsContent = thoughtsContent.trim();
+            // b. Разбиваем на строки, убираем пустые строки в начале/конце и очищаем каждую строку
+            const lines = thoughtsContent.split('\n').map(line => line.trimEnd()); // trimEnd убирает только конечные пробелы
+            // c. Убираем пустые строки в начале и конце массива
+            let startIndex = 0;
+            let endIndex = lines.length - 1;
+            while (startIndex <= endIndex && lines[startIndex].trim() === '') startIndex++;
+            while (endIndex >= startIndex && lines[endIndex].trim() === '') endIndex--;
+            const cleanLines = lines.slice(startIndex, endIndex + 1);
+            // d. Объединяем обратно
+            thoughtsContent = cleanLines.join('\n');
+            
+            // Создаем сворачиваемый блок мыслей
+            thoughtsHtml = `
+                <div class="ai-thoughts-container">
+                    <div class="ai-thoughts-header">
+                        <span class="ai-thoughts-label-main">Мысли ИИ</span>
+                        <button class="ai-thoughts-toggle" aria-label="Свернуть/развернуть мысли">−</button>
+                    </div>
+                    <div class="ai-thoughts-content">${this.escapeHtml(thoughtsContent)}
+                    </div>
+                </div>
+            `;
+            // Удаляем обработанный тег из текста, чтобы не мешал дальнейшей обработке
+            text = text.replace(thoughtsMatch[0], '');
+        }
+
+        // 2. Извлечение и обработка [CODE:language]...[/CODE] блоков
+        const codeBlocksHtml = [];
+        const codeRegex = /\[CODE:\s*([^\]]+?)\]([\s\S]*?)\[\/CODE\]/g;
+        let codeMatch;
+        let tempText = text; // Временная переменная для текста без кода
+
+        // Найдем все блоки кода и заменим их на маркеры
+        while ((codeMatch = codeRegex.exec(text)) !== null) {
+            const language = codeMatch[1].trim();
+            let codeContent = codeMatch[2];
+            // ИСПРАВЛЕНИЕ: Тщательно очищаем содержимое кода от лишних пробелов
+            // a. Удаляем начальные и конечные пустые строки
+            codeContent = codeContent.replace(/^\s*\n/, '').replace(/\n\s*$/, '\n'); // Убирает пустые строки в начале и конце
+            // b. Не трогаем внутренние отступы, так как они важны для кода
+            
+            // Создаем HTML для блока кода
+            const codeBlockHtml = this.createCodeBlockHTML(language, codeContent);
+            codeBlocksHtml.push(codeBlockHtml);
+            
+            // Заменяем найденный блок кода на маркер, чтобы не мешал обработке RESPONSE
+            tempText = tempText.replace(codeMatch[0], `{{CODE_BLOCK_${codeBlocksHtml.length - 1}}}`);
+        }
+        // Обновляем text без блоков кода
+        text = tempText;
+
+        // 3. Извлечение и обработка [RESPONSE]
         let responseContent = '';
+        const responseRegex = /\[RESPONSE\]([\s\S]*?)\[\/RESPONSE\]/;
+        const responseMatch = responseRegex.exec(text);
         if (responseMatch) {
-            responseContent = responseMatch[1].trim();
-            // Удаляем обработанный тег из оставшегося текста
-            remainingText = remainingText.replace(responseMatch[0], '');
+            responseContent = responseMatch[1];
+            // ИСПРАВЛЕНИЕ: Тщательно очищаем содержимое ответа
+            responseContent = responseContent.trim();
+            // Удаляем обработанный тег из текста
+            text = text.replace(responseMatch[0], '');
         }
 
         // 4. Определяем основной текст ответа
-        let mainResponseContent = responseContent;
-        if (!mainResponseContent) {
-            // Если [RESPONSE] не было, используем оставшийся текст без плейсхолдеров кода
-            mainResponseContent = remainingText.replace(/\{\{CODE_BLOCK_\d+\}\}/g, '').trim();
-        }
+        let mainResponseContent = responseContent || text.trim();
 
-        // 5. Добавляем основной ответ
+        // 5. Собираем финальный результат
+        result += thoughtsHtml; // Добавляем мысли (если были)
+        
+        // Добавляем основной ответ (если есть содержимое)
         if (mainResponseContent) {
             result += `<div class="ai-response">${this.escapeHtml(mainResponseContent)}</div>`;
         }
-
-        // 6. Добавляем блоки кода
-        codeBlocks.forEach((codeBlock, index) => {
-            result += this.createCodeBlockHTML(codeBlock.language, codeBlock.code);
+        
+        // Добавляем блоки кода
+        codeBlocksHtml.forEach(codeHtml => {
+            result += codeHtml;
         });
 
-        // Если ничего не добавили, показываем весь текст как есть
+        // Если ничего не добавили (например, пустой текст), покажем весь текст как есть
         if (!result.trim()) {
             result = `<div class="text">${this.escapeHtml(text)}</div>`;
         }
-
+        
         return result;
+    }
+
+    initThoughtsToggles() {
+        // Находим все заголовки блоков мыслей, которые еще не инициализированы
+        const thoughtHeaders = document.querySelectorAll('.ai-thoughts-header:not([data-initialized])');
+        
+        thoughtHeaders.forEach(header => {
+            // Помечаем как инициализированный
+            header.setAttribute('data-initialized', 'true');
+            
+            const toggleBtn = header.querySelector('.ai-thoughts-toggle');
+            const content = header.nextElementSibling; // .ai-thoughts-content
+            
+            if (toggleBtn && content) {
+                content.classList.add('collapsed');
+                toggleBtn.textContent = '+';
+                toggleBtn.setAttribute('aria-label', 'Развернуть мысли');
+                
+                // Добавляем обработчик клика
+                header.addEventListener('click', (e) => {
+                    // Предотвращаем всплытие, если кликнули не по кнопке
+                    if (e.target !== toggleBtn) {
+                        e.stopPropagation();
+                    }
+                    
+                    // Переключаем состояние
+                    content.classList.toggle('collapsed');
+                    
+                    // Меняем текст кнопки
+                    if (content.classList.contains('collapsed')) {
+                        toggleBtn.textContent = '+';
+                        toggleBtn.setAttribute('aria-label', 'Развернуть мысли');
+                    } else {
+                        toggleBtn.textContent = '−'; // Минус ASCII
+                        toggleBtn.setAttribute('aria-label', 'Свернуть мысли');
+                    }
+                });
+            }
+        });
     }
 
     // Функция копирования текста в буфер обмена
     initCodeCopyButtons() {
+        // Находим все кнопки копирования в чате, которые еще не инициализированы
         const copyButtons = document.querySelectorAll('.ai-code-copy-btn:not([data-initialized])');
         
         copyButtons.forEach(button => {
+            // Помечаем кнопку как инициализированную чтобы избежать дублирования
             button.setAttribute('data-initialized', 'true');
             
             button.addEventListener('click', async (e) => {
@@ -1115,20 +1280,25 @@ class SingleChat {
                 const originalText = button.textContent;
                 
                 try {
+                    // Пытаемся использовать Clipboard API
                     await navigator.clipboard.writeText(codeToCopy);
                     
+                    // Показываем уведомление об успешном копировании
                     button.textContent = 'Скопировано!';
                     button.classList.add('copied');
                     
+                    // Возвращаем оригинальный текст через 2 секунды
                     setTimeout(() => {
                         button.textContent = originalText;
                         button.classList.remove('copied');
                     }, 2000);
                     
                 } catch (err) {
+                    // Если Clipboard API не работает, используем fallback
                     console.log('Clipboard API не доступен, используем fallback');
                     
                     try {
+                        // Создаем временный textarea элемент
                         const textArea = document.createElement('textarea');
                         textArea.value = codeToCopy;
                         textArea.style.position = 'fixed';
@@ -1138,6 +1308,7 @@ class SingleChat {
                         textArea.focus();
                         textArea.select();
                         
+                        // Выполняем копирование
                         const successful = document.execCommand('copy');
                         document.body.removeChild(textArea);
                         
@@ -1166,8 +1337,6 @@ class SingleChat {
         });
     }
 
-    // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    // НОВАЯ ФУНКЦИЯ: Отправка сообщения пользователя
     async sendMessage() {
         if (!this.currentChatId || !this.currentChatData) return;
 
@@ -1264,7 +1433,6 @@ class SingleChat {
             return map[m];
         });
     }
-    // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
     // Отправка сообщения ИИ через API
     async sendToAI(userMessage) {

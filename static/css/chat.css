@@ -363,7 +363,6 @@ body{
 
 .form-group input,
 .form-group select {
-    width: 100%;
     padding: 12px 15px;
     border-radius: 12px;
     border: 1px solid var(--card-border);
@@ -372,6 +371,10 @@ body{
     font-size: 1rem;
     font-family: inherit;
     font-weight: inherit;
+}
+
+.chat-name {
+    width: 100%;
 }
 
 .form-group input:focus,
@@ -958,4 +961,311 @@ body{
         font-size: 0.85rem;
         margin-bottom: 6px;
     }
+}
+
+/* Стили для отображения времени сообщения в левом нижнем углу */
+.message {
+    position: relative; /* Необходимо для позиционирования временной метки */
+    padding-bottom: 25px; /* Добавляем отступ снизу для временной метки */
+}
+
+.message-timestamp {
+    position: absolute;
+    bottom: 5px;
+    left: 15px; /* Левый нижний угол */
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+}
+
+.message:hover .message-timestamp {
+    opacity: 1;
+}
+
+/* Стили для блока кода ИИ */
+.ai-code-block {
+    margin: 10px 0;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #1e1e1e;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 0.9rem;
+}
+
+.ai-code-header {
+    background: #2d2d30;
+    color: #cccccc;
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.ai-code-language {
+    font-weight: 600;
+    color: #569cd6;
+}
+
+.ai-code-copy-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #cccccc;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.ai-code-copy-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.ai-code-copy-btn.copied {
+    background: #4caf50;
+    border-color: #4caf50;
+    color: white;
+}
+
+.ai-code-content {
+    padding: 0;
+    margin: 0;
+    overflow-x: auto;
+    max-width: 100%;
+}
+
+.ai-code-lines {
+    display: table;
+    width: 100%;
+}
+
+.ai-code-line {
+    display: table-row;
+}
+
+.ai-code-line-number {
+    display: table-cell;
+    color: #858585;
+    background: #2d2d30;
+    padding: 0 12px;
+    text-align: right;
+    user-select: none;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    min-width: 40px;
+    font-size: 0.85em; /* Сlightly smaller font for line numbers */
+}
+
+.ai-code-line-content {
+    display: table-cell;
+    padding: 0 12px;
+    color: #d4d4d4;
+    white-space: pre; /* Preserve whitespace and line breaks */
+    font-size: 0.85em;
+}
+
+/* Стили для сворачиваемого блока мыслей [THOUGHTS] */
+.ai-thoughts-container {
+    margin-bottom: 10px;
+    border-radius: 12px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.ai-thoughts-header {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 10px 15px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.ai-thoughts-label-main {
+    font-weight: 600;
+    color: var(--secondary-color);
+}
+
+.ai-thoughts-toggle {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background-color 0.2s ease;
+}
+
+.ai-thoughts-toggle:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.ai-thoughts-content {
+    background: rgba(255, 255, 255, 0.03);
+    padding: 12px 15px;
+    font-style: italic;
+    opacity: 0.9;
+    line-height: 1.5;
+    white-space: pre-wrap; /* Сохраняем форматирование, но позволяя переносы */
+}
+
+.ai-thoughts-content.collapsed {
+    display: none;
+}
+
+/* Адаптивность */
+@media (max-width: 480px) {
+    .message {
+        padding-bottom: 20px; /* Меньше отступ для мобильных */
+    }
+    
+    .message-timestamp {
+        font-size: 0.65rem;
+        left: 10px;
+    }
+    
+    .ai-code-block {
+        font-size: 0.8rem;
+    }
+    
+    .ai-code-header {
+        padding: 6px 10px;
+        font-size: 0.75rem;
+    }
+    
+    .ai-code-line-number {
+        padding: 0 8px;
+        min-width: 30px;
+    }
+    
+    .ai-code-line-content {
+        padding: 0 8px;
+        font-size: 0.8rem;
+    }
+    
+    .ai-thoughts-header {
+        padding: 8px 12px;
+        font-size: 0.9rem;
+    }
+    
+    .ai-thoughts-content {
+        padding: 10px 12px;
+        font-size: 0.9rem;
+    }
+}
+
+.slider-container {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-top: 10px;
+}
+
+#reasoning-len-slider {
+    flex: 1;
+    height: 8px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
+    border-radius: 5px;
+    border-color: var(--card-border);
+    outline: none;
+}
+
+#reasoning-len-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--text-color);
+    cursor: pointer;
+    border: 2px solid var(--primary-color);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    transition: all 0.2s ease;
+}
+
+#reasoning-len-slider::-moz-range-thumb {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--text-color);
+    cursor: pointer;
+    border: 2px solid var(--primary-color);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    transition: all 0.2s ease;
+}
+
+#reasoning-len-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+    background: var(--primary-color);
+}
+
+#reasoning-len-slider::-moz-range-thumb:hover {
+    transform: scale(1.2);
+    background: var(--primary-color);
+}
+
+.slider-info {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-top: 5px;
+}
+
+#reasoning-len-value {
+    font-weight: 900;
+    color: var(--secondary-color);
+}
+
+/* Адаптивность для ползунка */
+@media (max-width: 480px) {
+    .slider-container {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+    
+    .slider-input {
+        width: 100%;
+    }
+    
+    .slider-info {
+        font-size: 0.75rem;
+    }
+}
+
+.slider-input {
+    width: 30%;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--card-border);
+    background: rgba(255, 255, 255, 0.15);
+    color: var(--text-color);
+    font-size: 1rem;
+    font-family: inherit;
+    font-weight: inherit;
+    text-align: center;
+}
+
+.slider-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.3);
+}
+
+.slider-slider {
+    width: 70%;
 }
