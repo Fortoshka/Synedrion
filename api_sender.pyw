@@ -67,6 +67,7 @@ def get_api_keys():
 def load_history():
     """Загружает историю диалога из файла"""
     history = [{"role": "system", "content": f"{BASE_SYSTEM_PROMPT} \n [USERPROMPT] \n{USER_SYSTEM_PROMPT} \n[/USERPROMPT] \n [/INSTRUCTION]"}]
+    logging.info(HISTORY_FILE)
     for message in HISTORY_FILE["messages"]:
         if message["sender"] == "ai":
             history.append({"role": "assistant", "reasoning": message.get("reasoning", ""), "content": message.get("answer", "")})
@@ -74,21 +75,22 @@ def load_history():
             history.append({"role": "user", "content": message.get("text","")})
         elif message["sender"] == "error":
             history.pop()
-    logging.info(f"История диалога загружена. Всего сообщений: {len(history)}")
+    logging.info(f"История диалога загружена. Всего сообщений: {len(history)}\n {history}")
     return history
 
 def save_history(answer):
     """Сохраняет историю диалога в файл"""
-    HISTORY_FILE["messages"].append({
+    HISTORY_FILE_TEMP = json.loads(json.dumps(HISTORY_FILE))
+    HISTORY_FILE_TEMP["messages"].append({
         'id': int(time.time() * 1000),  # Уникальный ID
         'sender': 'ai',
-        "reasoning": answer['choices'][0]['message']['reasoning'],
-        "answer": answer['choices'][0]['message']['content'],
-        'text': f"[THOUGHTS] \n{answer['choices'][0]['message']['reasoning']} \n[/THOUGHTS] \n{answer['choices'][0]['message']['content']}",
+        "reasoning": answer.get('choices',[{}])[0].get('message',{}).get('reasoning',''),
+        "answer": answer.get('choices',[{}])[0].get('message',{}).get('content',''),
+        'text':  f"[THOUGHTS] \n{answer.get('choices',[{}])[0].get('message',{}).get('reasoning',''),} \n[/THOUGHTS] \n{answer.get('choices',[{}])[0].get('message',{}).get('content','')}" if answer.get('choices',[{}])[0].get('message',{}).get('content','') else "[LOADING]",
         'timestamp': datetime.now().isoformat()
     })
     with open(HISTORY_PATH, "w", encoding="utf-8") as f:
-        json.dump(HISTORY_FILE, f, ensure_ascii=False, indent=2)
+        json.dump(HISTORY_FILE_TEMP, f, ensure_ascii=False, indent=2)
     logging.info("История успешно сохранена.")
 
 
@@ -174,15 +176,18 @@ def send_message_api(history):
             logging.warning(f"Ошибка при удалении API ключа: {e}")
 
 
-
 def main():
-    history = load_history()
-    answer = send_message_api(history)
-    if answer:
-        save_history(answer)
-        logging.info("Ответ сохранён в истории.")
-    else:
-        logging.warning("Ответ не был получен.")
+    try:
+        save_history({})
+        history = load_history()
+        answer = send_message_api(history)
+        if answer:
+            save_history(answer)
+            logging.info("Ответ сохранён в истории.")
+        else:
+            logging.warning("Ответ не был получен.")
+    finally:
+        logging.info("api_sender.pyw завершил работу!")
 
 
 if __name__ == "__main__":
