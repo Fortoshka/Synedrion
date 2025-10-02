@@ -67,7 +67,6 @@ def get_api_keys():
 def load_history():
     """Загружает историю диалога из файла"""
     history = [{"role": "system", "content": f"{BASE_SYSTEM_PROMPT} \n [USERPROMPT] \n{USER_SYSTEM_PROMPT} \n[/USERPROMPT] \n [/INSTRUCTION]"}]
-    logging.info(HISTORY_FILE)
     for message in HISTORY_FILE["messages"]:
         if message["sender"] == "ai":
             history.append({"role": "assistant", "reasoning": message.get("reasoning", ""), "content": message.get("answer", "")})
@@ -75,7 +74,7 @@ def load_history():
             history.append({"role": "user", "content": message.get("text","")})
         elif message["sender"] == "error":
             history.pop()
-    logging.info(f"История диалога загружена. Всего сообщений: {len(history)}\n {history}")
+    logging.info(f"История диалога загружена. Всего сообщений: {len(history)}")
     return history
 
 def save_history(answer):
@@ -113,7 +112,7 @@ def send_message_api(history):
         response = requests.post(API_URL, headers=headers, json=data, timeout=60)
         response.raise_for_status()
         result = response.json()
-        logging.info(f"Ответ от API успешно получен.\n{result}")
+        logging.info(f"Ответ от API успешно получен: {result}")
         return result
     
     except requests.exceptions.RequestException as e:
@@ -186,6 +185,8 @@ def main():
             logging.info("Ответ сохранён в истории.")
         else:
             logging.warning("Ответ не был получен.")
+    except:
+        save_history({"choices":[{"message":{"content":"Ошибка в проге напишите в тех.подержку"}}]})
     finally:
         logging.info("api_sender.pyw завершил работу!")
 
