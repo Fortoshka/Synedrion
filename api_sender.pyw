@@ -77,15 +77,18 @@ def load_history():
     logging.info(f"История диалога загружена. Всего сообщений: {len(history)}")
     return history
 
-def save_history(answer):
+def save_history(response):
     """Сохраняет историю диалога в файл"""
     HISTORY_FILE_TEMP = json.loads(json.dumps(HISTORY_FILE))
+    answer = response.get('choices',[{}])[0].get('message',{}).get('content','')
+    reasoning = response.get('choices',[{}])[0].get('message',{}).get('reasoning','')
+    text = "[LOADING]" if not answer else (f"[THOUGHTS]\n{reasoning}\n[/THOUGHTS]\n{answer}" if reasoning else answer)
     HISTORY_FILE_TEMP["messages"].append({
         'id': int(time.time() * 1000),  # Уникальный ID
         'sender': 'ai',
-        "reasoning": answer.get('choices',[{}])[0].get('message',{}).get('reasoning',''),
-        "answer": answer.get('choices',[{}])[0].get('message',{}).get('content',''),
-        'text':  f"[THOUGHTS] \n{answer.get('choices',[{}])[0].get('message',{}).get('reasoning',''),} \n[/THOUGHTS] \n{answer.get('choices',[{}])[0].get('message',{}).get('content','')}" if answer.get('choices',[{}])[0].get('message',{}).get('content','') else "[LOADING]",
+        "reasoning": reasoning,
+        "answer": answer,
+        'text':  text,
         'timestamp': datetime.now().isoformat()
     })
     with open(HISTORY_PATH, "w", encoding="utf-8") as f:
@@ -102,10 +105,9 @@ def send_message_api(history):
     data = {
         "model": MODEL, 
         "messages": history,
-        "reasoning": {
-            "max_tokens": REASONING_MAX
-            }
-        }
+        "usage": {"include": True}
+    }
+    if REASONING_MAX>0: data["reasoning"] = {"max_tokens": REASONING_MAX}
     
     try:
         logging.info("Отправка сообщения в API...")
