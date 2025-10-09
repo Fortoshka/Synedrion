@@ -42,10 +42,9 @@ HISTORY_FILE = load_json(HISTORY_PATH)
 USER_SYSTEM_PROMPT = HISTORY_FILE["system_prompt"]
 MODEL = HISTORY_FILE["model"]
 REASONING_MAX = HISTORY_FILE["reasoning_len"]
-if not os.path.exists(CONFIG_PATH):
-    API_KEYS_P = load_json("config.example.json")
-else:
-    API_KEYS_P = load_json("api_keys.json")
+KYES_PATH ="api_keys.json"
+if not os.path.exists(KYES_PATH): KYES_PATH ="api_keys.example.json"
+API_KEYS_P = load_json(KYES_PATH)
 
 BASE_SYSTEM_PROMPT = open(os.path.join(os.path.dirname(__file__), "config", "system_promt.txt"), "r", encoding="utf-8").read()
 
@@ -148,7 +147,7 @@ def send_message_api(history):
                     logging.error(f"Сброс лимита произойдет:{reset_time_utc}. Ключ заработатет через {reset_time_utc-now_utc} ")
             finally:
                 API_KEYS_P.append(API_KEYS_P.pop(0))
-                with open("api_keys.json", "w", encoding="utf-8") as f:
+                with open(KYES_PATH, "w", encoding="utf-8") as f:
                     json.dump(API_KEYS_P, f, ensure_ascii=False, indent=4)
         elif "502" in err:
             error_answer += "К сожалению, сервера сейчас перегружены. Попробуйте позже или выберите другую модель."
