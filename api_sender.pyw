@@ -42,7 +42,10 @@ HISTORY_FILE = load_json(HISTORY_PATH)
 USER_SYSTEM_PROMPT = HISTORY_FILE["system_prompt"]
 MODEL = HISTORY_FILE["model"]
 REASONING_MAX = HISTORY_FILE["reasoning_len"]
-API_KEYS_P = load_json("api_keys.json")
+if not os.path.exists(CONFIG_PATH):
+    API_KEYS_P = load_json("config.example.json")
+else:
+    API_KEYS_P = load_json("api_keys.json")
 
 BASE_SYSTEM_PROMPT = open(os.path.join(os.path.dirname(__file__), "config", "system_promt.txt"), "r", encoding="utf-8").read()
 
