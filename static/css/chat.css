@@ -170,6 +170,10 @@ body{
     border-bottom-left-radius: 5px;
 }
 
+.message {
+    min-width: 10%;
+}
+
 [data-theme="light"] .message.ai{
     background-color: black;
     color: white;
@@ -1362,4 +1366,8 @@ body{
         font-size: 1rem;
         padding: 0 15px;
     }
+}
+
+.ai {
+    min-width: 40%;
 }
