@@ -77,12 +77,20 @@ def load_history():
     logging.info(f"История диалога загружена. Всего сообщений: {len(history)}")
     return history
 
-def save_history(response):
+def save_history(response, state = None):
     """Сохраняет историю диалога в файл"""
     HISTORY_FILE_TEMP = json.loads(json.dumps(HISTORY_FILE))
     answer = response.get('choices',[{}])[0].get('message',{}).get('content','')
     reasoning = response.get('choices',[{}])[0].get('message',{}).get('reasoning','')
-    text = "[LOADING]" if not answer else (f"[THOUGHTS]\n{reasoning}\n[/THOUGHTS]\n{answer}" if reasoning else answer)
+    if not answer:
+        if state == None:
+            text = f"[LOADING:10]Создание запроса в API...[/LOADING]"
+        elif state == 'generating':
+            text = f"[LOADING:30]Генерация ответа...[/LOADING]"
+    elif reasoning:
+        text = f"[THOUGHTS]\n{reasoning}\n[/THOUGHTS]\n{answer}" 
+    else:
+        text = answer
     HISTORY_FILE_TEMP["messages"].append({
         'id': int(time.time() * 1000),  # Уникальный ID
         'sender': 'ai',
@@ -111,6 +119,7 @@ def send_message_api(history):
     
     try:
         logging.info("Отправка сообщения в API...")
+        save_history({}, 'generating')
         response = requests.post(API_URL, headers=headers, json=data, timeout=60)
         response.raise_for_status()
         result = response.json()
@@ -188,7 +197,7 @@ def main():
         else:
             logging.warning("Ответ не был получен.")
     except:
-        save_history({"choices":[{"message":{"content":"Ошибка в проге напишите в тех.подержку"}}]})
+        save_history({"choices":[{"message":{"content":"⚠️При обработке запроса возникла ошибка⚠️\nЭто могло произойти из-за:\n❌Отсутствия подключения к сети\n❌Неработоспособности ключей API\n❌Ошибки в коде программы\n\nЕсли Вам срочно необходима помощь с решением проблемы, обратитесь в тех поддержку (смотрите раздел 'О приложении'). В противном случае попробуйте создать новый чат, перегенерировать текущий, или дождаться решения проблемы в новом обновлении."}}]})
     finally:
         logging.info("api_sender.pyw завершил работу!")
 

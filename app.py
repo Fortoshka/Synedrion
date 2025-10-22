@@ -93,7 +93,7 @@ def single_chat():
 
 @app.route('/council')
 def council():
-    return render_template('pages/council.html')
+    return render_template('council.html')
 
 @app.route('/settings')
 def settings_page():

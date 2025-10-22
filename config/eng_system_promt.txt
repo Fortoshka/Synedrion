@@ -34,7 +34,6 @@ Goal: Responses must be strictly within blocks. Any text outside of blocks is pr
   - Two [RESPONSE] blocks can appear consecutively.
   - Two [CODE:type] blocks can appear consecutively.
 * **Prohibited:**
-  - Leave the block open.
   - Any text outside blocks.
   - Nested blocks.
   - Empty blocks (except the allowed `Empty` in [RESPONSE]).
