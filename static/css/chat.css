@@ -299,15 +299,19 @@ body{
 }
 
 .modal {
-    display: none;
-    position: fixed;
+    display: none; /* Скрыто по умолчанию */
+    position: fixed; /* Фиксированное позиционирование относительно viewport */
+    z-index: 1000; /* Выше других элементов */
     left: 0;
     top: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(5px);
-    animation: fadeIn 0.3s ease;
+    width: 100vw; /* Полная ширина viewport */
+    height: 100vh; /* Полная высота viewport */
+    justify-content: center; /* Центрирование по горизонтали */
+    align-items: center; /* Центрирование по вертикали */
+    overflow: hidden; /* Отключаем скролл модального окна */
+    background-color: rgba(0, 0, 0, 0.5); /* Полупрозрачный черный фон */
+    backdrop-filter: blur(5px); /* Эффект размытия фона */
+    animation: fadeIn 0.3s ease; /* Анимация появления */
 }
 
 .modal-content {
@@ -468,26 +472,43 @@ body{
 }
 
 /* Адаптивность модального окна */
-@media (max-width: 480px) {
+@media (max-height: 600px) {
     .modal-content {
-        margin: 5% auto;
-        width: 95%;
+        max-height: 95vh; /* Больше места на маленьких экранах */
+        width: 95%; /* Немного больше ширина */
+    }
+    
+    .modal-header,
+    .modal-body,
+    .modal-actions {
+        padding: 15px; /* Меньше паддинги */
+    }
+    
+    .modal-header h2 {
+        font-size: 1.3rem; /* Меньший шрифт заголовка */
+    }
+}
+
+@media (max-height: 400px) {
+    .modal-content {
+        max-height: 98vh;
+        width: 98%;
+        border-radius: 15px; /* Меньший радиус скругления */
     }
     
     .modal-header {
-        padding: 15px;
-    }
-    
-    .modal-body {
-        padding: 15px;
+        border-radius: 15px 15px 0 0;
     }
     
     .modal-actions {
-        flex-direction: column;
+        border-radius: 0 0 15px 15px;
     }
     
-    .modal-actions .btn {
-        width: 100%;
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        padding: 8px 10px; /* Меньше паддинги полей ввода */
+        font-size: 0.9rem;
     }
 }
 

@@ -66,11 +66,9 @@ class SingleChat {
         const cancelBtn = document.getElementById('cancel-create-chat');
         const confirmBtn = document.getElementById('create-chat-confirm');
         
-        this.initReasoningLenControls(modal);
-
-        // Закрытие модального окна
+        // Функция закрытия модального окна
         const closeModal = () => {
-            modal.style.display = 'none';
+            this.closeModal('new-chat-modal');
         };
         
         // Открытие модального окна
@@ -91,25 +89,23 @@ class SingleChat {
         
         // Закрытие по Escape
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && modal.style.display === 'block') {
+            if (e.key === 'Escape' && modal.style.display === 'flex') {
                 closeModal();
             }
         });
     }
 
-    // Настройка обработчиков модального окна настроек чата
+    // Настройка обработчиков модального окна настроек чата (обновленная версия)
     setupSettingsModalHandlers() {
         const modal = document.getElementById('chat-settings-modal');
         const closeBtn = document.querySelector('.close-settings-modal');
         const cancelBtn = document.getElementById('cancel-chat-settings');
         const saveBtn = document.getElementById('save-chat-settings');
-        const deleteBtn = document.getElementById('delete-chat-btn'); // Кнопка удаления
-
-        this.initReasoningLenControls(modal);
+        const deleteBtn = document.getElementById('delete-chat-btn');
         
-        // Закрытие модального окна
+        // Функция закрытия модального окна
         const closeModal = () => {
-            modal.style.display = 'none';
+            this.closeModal('chat-settings-modal');
         };
         
         // Обработчики для закрытия
@@ -121,9 +117,9 @@ class SingleChat {
             this.saveChatSettings();
         });
         
-        // Удаление чата (добавляем обработчик клика)
+        // Удаление чата
         deleteBtn.addEventListener('click', () => {
-            this.deleteChat(); // Вызываем функцию удаления
+            this.deleteChat();
         });
         
         // Закрытие при клике вне модального окна
@@ -135,7 +131,7 @@ class SingleChat {
         
         // Закрытие по Escape
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && modal.style.display === 'block') {
+            if (e.key === 'Escape' && modal.style.display === 'flex') {
                 closeModal();
             }
         });
@@ -203,7 +199,7 @@ class SingleChat {
         const cancelBtn = document.getElementById('cancel-delete-btn');
         
         // Показываем модальное окно
-        modal.style.display = 'block';
+        modal.style.display = 'flex';
         
         // Функция закрытия модального окна
         const closeModal = () => {
@@ -229,7 +225,7 @@ class SingleChat {
         
         // Закрытие по Escape
         const handleEscape = (e) => {
-            if (e.key === 'Escape' && modal.style.display === 'block') {
+            if (e.key === 'Escape' && modal.style.display === 'flex') {
                 closeModal();
                 document.removeEventListener('keydown', handleEscape);
             }
@@ -312,21 +308,11 @@ class SingleChat {
         const modelSelect = document.getElementById('chat-model');
         const titleInput = document.getElementById('chat-title');
         const systemPromptInput = document.getElementById('system-prompt');
-        // НОВОЕ: Получаем элементы управления длиной рассуждения
-        const slider = document.getElementById('reasoning-len-slider');
-        const input = document.getElementById('reasoning-len-input');
-        const valueDisplay = document.getElementById('reasoning-len-value');
         
         // Очищаем поля
         titleInput.value = '';
         systemPromptInput.value = '';
         modelSelect.innerHTML = '<option value="">Загрузка моделей...</option>';
-        // НОВОЕ: Устанавливаем значения по умолчанию для ползунка
-        if (slider && input && valueDisplay) {
-            slider.value = 1000;
-            input.value = 1000;
-            valueDisplay.textContent = 1000;
-        }
         
         // Загружаем список моделей
         try {
@@ -354,28 +340,27 @@ class SingleChat {
             modelSelect.innerHTML = '<option value="">Ошибка подключения</option>';
         }
         
-        // Показываем модальное окно
-        modal.style.display = 'block';
+        // Показываем модальное окно с правильным display
+        modal.style.display = 'flex'; // Используем flex для центрирования
         
         // Фокус на поле названия
         setTimeout(() => {
             titleInput.focus();
         }, 100);
+        
+        // Предотвращаем скролл фона
+        document.body.style.overflow = 'hidden';
     }
 
-    // Создание чата из модального окна
+    // Создание чата из модального окна (обновленная версия)
     async createChatFromModal() {
         const titleInput = document.getElementById('chat-title');
         const modelSelect = document.getElementById('chat-model');
         const systemPromptInput = document.getElementById('system-prompt');
-        // НОВОЕ: Получаем значение длины рассуждения
-        const reasoningLenInput = document.getElementById('reasoning-len-input');
         
         const title = titleInput.value.trim();
         const modelUrl = modelSelect.value;
         const systemPrompt = systemPromptInput.value.trim();
-        // НОВОЕ: Получаем значение reasoning_len
-        const reasoningLen = parseInt(reasoningLenInput.value) || 1000;
         
         if (!title) {
             alert('Пожалуйста, введите название чата');
@@ -397,8 +382,7 @@ class SingleChat {
                 body: JSON.stringify({
                     title: title,
                     model: modelUrl,
-                    system_prompt: systemPrompt || undefined,
-                    reasoning_len: reasoningLen // НОВОЕ: Добавляем reasoning_len
+                    system_prompt: systemPrompt || undefined
                 })
             });
             
@@ -407,8 +391,8 @@ class SingleChat {
                 this.loadChat(newChat.id);
                 this.loadChatsList();
                 
-                // Закрываем модальное окно
-                document.getElementById('new-chat-modal').style.display = 'none';
+                // Закрываем модальное окно ПРАВИЛЬНО
+                this.closeModal('new-chat-modal');
                 
                 // Закрываем сайдбар на мобильных
                 if (window.innerWidth <= 768) {
@@ -424,17 +408,13 @@ class SingleChat {
         }
     }
 
-    // Открытие модального окна настроек чата
+    // Открытие модального окна настроек чата (обновленная версия)
     async openChatSettings(chatId) {
         const modal = document.getElementById('chat-settings-modal');
         const chatIdInput = document.getElementById('settings-chat-id');
         const titleInput = document.getElementById('settings-chat-title');
         const modelSelect = document.getElementById('settings-chat-model');
         const systemPromptInput = document.getElementById('settings-system-prompt');
-        // НОВОЕ: Получаем элементы управления длиной рассуждения
-        const slider = document.getElementById('settings-reasoning-len-slider');
-        const input = document.getElementById('settings-reasoning-len-input');
-        const valueDisplay = document.getElementById('settings-reasoning-len-value');
         
         // Загружаем данные чата
         try {
@@ -446,13 +426,6 @@ class SingleChat {
                 chatIdInput.value = chatData.id;
                 titleInput.value = chatData.title || '';
                 systemPromptInput.value = chatData.system_prompt || '';
-                // НОВОЕ: Устанавливаем значение reasoning_len
-                const reasoningLen = chatData.reasoning_len !== undefined ? chatData.reasoning_len : 1000;
-                if (slider && input && valueDisplay) {
-                    slider.value = reasoningLen;
-                    input.value = reasoningLen;
-                    valueDisplay.textContent = reasoningLen;
-                }
                 
                 // Загружаем список моделей
                 const settingsResponse = await fetch('/api/settings');
@@ -472,8 +445,12 @@ class SingleChat {
                     });
                 }
                 
-                // Показываем модальное окно
-                modal.style.display = 'block';
+                // Показываем модальное окно с правильным display
+                modal.style.display = 'flex'; // Используем flex для центрирования
+                
+                // Предотвращаем скролл фона
+                document.body.style.overflow = 'hidden';
+                
             } else {
                 console.error('Ошибка загрузки данных чата');
                 alert('Ошибка загрузки данных чата');
@@ -484,21 +461,17 @@ class SingleChat {
         }
     }
 
-    // Сохранение настроек чата
+    // Сохранение настроек чата (обновленная версия)
     async saveChatSettings() {
         const chatIdInput = document.getElementById('settings-chat-id');
         const titleInput = document.getElementById('settings-chat-title');
         const modelSelect = document.getElementById('settings-chat-model');
         const systemPromptInput = document.getElementById('settings-system-prompt');
-        // НОВОЕ: Получаем значение длины рассуждения
-        const reasoningLenInput = document.getElementById('settings-reasoning-len-input');
         
         const chatId = chatIdInput.value;
         const title = titleInput.value.trim();
         const modelUrl = modelSelect.value;
         const systemPrompt = systemPromptInput.value.trim();
-        // НОВОЕ: Получаем значение reasoning_len
-        const reasoningLen = parseInt(reasoningLenInput.value) || 1000;
         
         if (!title) {
             alert('Пожалуйста, введите название чата');
@@ -520,8 +493,6 @@ class SingleChat {
                 chatData.title = title;
                 chatData.model = modelUrl;
                 chatData.system_prompt = systemPrompt || undefined;
-                // НОВОЕ: Обновляем reasoning_len
-                chatData.reasoning_len = reasoningLen;
                 
                 // Сохраняем обновленные данные
                 const updateResponse = await fetch(`/api/chats/${chatId}`, {
@@ -544,8 +515,9 @@ class SingleChat {
                     
                     this.loadChatsList();
                     
-                    // Закрываем модальное окно
-                    document.getElementById('chat-settings-modal').style.display = 'none';
+                    // Закрываем модальное окно ПРАВИЛЬНО
+                    this.closeModal('chat-settings-modal');
+                    
                 } else {
                     console.error('Ошибка сохранения настроек чата');
                     alert('Ошибка сохранения настроек чата');
@@ -557,6 +529,16 @@ class SingleChat {
         } catch (error) {
             console.error('Ошибка подключения:', error);
             alert('Ошибка подключения к серверу');
+        }
+    }
+
+    // Закрытие модального окна (новая функция)
+    closeModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.style.display = 'none';
+            // Восстанавливаем скролл
+            document.body.style.overflow = '';
         }
     }
 

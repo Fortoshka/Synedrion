@@ -489,6 +489,6 @@ if __name__ == '__main__':
     if settings.get('fullscreen', False):
         webview.create_window('Synedrion', 'http://127.0.0.1:5001', width=1200, height=800, fullscreen=True)
     else:
-        webview.create_window('Synedrion', 'http://127.0.0.1:5001', width=1200, height=800)
+        webview.create_window('Synedrion', 'http://127.0.0.1:5001', width=1200, height=800, min_size=(600, 800))
     
     webview.start()  # Запускает цикл GUI
