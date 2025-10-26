@@ -1392,3 +1392,22 @@ body{
 .ai {
     min-width: 40%;
 }
+
+.ai-bold-text {
+    font-weight: 700; /* Жирный шрифт */
+    color: var(--bold-text-color); /* Цвет из темы приложения */
+    background: rgba(96, 165, 250, 0.15); /* Полупрозрачный фон */
+    padding: 2px 6px; /* Небольшие отступы */
+    border-radius: 4px; /* Скругленные углы */
+    margin: 2px;
+    border: 1px solid var(--secondary-color); /* Граница того же цвета */
+    display: inline-block; /* Чтобы фон и граница применялись правильно */
+}
+
+/* Адаптивность для выделенного текста */
+@media (max-width: 480px) {
+    .ai-bold-text {
+        padding: 1px 4px;
+        font-size: 0.95em;
+    }
+}
