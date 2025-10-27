@@ -864,6 +864,8 @@ body{
     border: 1px solid rgba(255, 255, 255, 0.1);
     font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
     font-size: 0.9rem;
+    scrollbar-width: thin;
+    scrollbar-color: var(--primary-color) #2d2d30;
 }
 
 .ai-code-header {
@@ -908,11 +910,38 @@ body{
     margin: 0;
     overflow-x: auto;
     max-width: 100%;
+    scrollbar-width: thin;
+    scrollbar-color: var(--card-border) #2d2d30;
+}
+
+.ai-code-content::-webkit-scrollbar {
+    height: 12px;
+}
+
+.ai-code-content::-webkit-scrollbar-track {
+    background: #2d2d30;
+    border-radius: 6px;
+}
+
+.ai-code-content::-webkit-scrollbar-thumb {
+    background: var(--card-border);
+    border-radius: 6px;
+    border: 2px solid #2d2d30;
+}
+
+.ai-code-content::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-dark);
+    border-color: #1e1e1e;
+}
+
+.ai-code-content::-webkit-scrollbar-corner {
+    background: #2d2d30;
 }
 
 .ai-code-lines {
     display: table;
     width: 100%;
+    min-width: fit-content;
 }
 
 .ai-code-line {
@@ -1409,5 +1438,54 @@ body{
     .ai-bold-text {
         padding: 1px 4px;
         font-size: 0.95em;
+    }
+}
+
+#input-error-modal .modal-content {
+    max-width: 400px;
+}
+
+#input-error-modal .modal-body {
+    text-align: center;
+    padding: 30px 20px;
+}
+
+#input-error-modal .modal-body p {
+    color: var(--text-color);
+    font-size: 1.1rem;
+    line-height: 1.6;
+    margin: 0;
+}
+
+#input-error-modal .modal-actions {
+    justify-content: center;
+}
+
+#input-error-modal .btn {
+    min-width: 120px;
+}
+
+/* Адаптивность для модального окна ошибки */
+@media (max-width: 480px) {
+    #input-error-modal .modal-content {
+        max-width: 90%;
+        width: 90%;
+    }
+    
+    #input-error-modal .modal-body {
+        padding: 20px 15px;
+    }
+    
+    #input-error-modal .modal-body p {
+        font-size: 1rem;
+    }
+    
+    #input-error-modal .modal-actions {
+        padding: 15px;
+    }
+    
+    #input-error-modal .btn {
+        width: 100%;
+        min-width: auto;
     }
 }

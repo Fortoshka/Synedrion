@@ -185,6 +185,23 @@
         </div>
     </div>
 
+    <div id="input-error-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Ошибка ввода</h2>
+                <span class="close-input-error-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p id="input-error-message">Пожалуйста, введите название чата</p>
+            </div>
+            <div class="modal-actions", style="padding-bottom: 20px;">
+                <button id="confirm-input-error-btn" class="btn primary-btn small-btn">
+                    <span class="btn-text">Упс, исправлю!</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
     <script>
         document.addEventListener("DOMContentLoaded", function() {

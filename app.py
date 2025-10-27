@@ -445,7 +445,6 @@ def get_devlog():
         print(f"Ошибка чтения devlog.html: {e}")
         return jsonify({'error': 'Ошибка чтения файла devlog'}), 500
 
-# Новый API endpoint для обновления комментария в devlog
 @app.route('/api/devlog/hide', methods=['POST'])
 def hide_devlog():
     """Обновить комментарий в devlog.html, чтобы он больше не показывался"""
@@ -472,23 +471,20 @@ def call_ai_api(message):
     return f"Это ответ ИИ на ваше сообщение: '{message}'. Не переживайте, однажды эта заглушка сменится на нормальный ответ."
 
 def start_server():
-    app.run(host='127.0.0.1', port=5001, debug=True, use_reloader=False)
+    app.run(host='127.0.0.1', port=1703, debug=True, use_reloader=False)
 
 if __name__ == '__main__':
-    # Создаем файл настроек при первом запуске
     if not os.path.exists(SETTINGS_FILE):
         save_settings(DEFAULT_SETTINGS)
     
-    # Запускаем Flask в отдельном потоке
     t = threading.Thread(target=start_server)
     t.daemon = True
     t.start()
 
-    # Открываем окно с интерфейсом
     settings = load_settings()
     if settings.get('fullscreen', False):
-        webview.create_window('Synedrion', 'http://127.0.0.1:5001', width=1200, height=800, fullscreen=True)
+        webview.create_window('Synedrion', 'http://127.0.0.1:1703', width=1200, height=800, fullscreen=True)
     else:
-        webview.create_window('Synedrion', 'http://127.0.0.1:5001', width=1200, height=800, min_size=(600, 800))
+        webview.create_window('Synedrion', 'http://127.0.0.1:1703', width=1200, height=800, min_size=(600, 800))
     
-    webview.start()  # Запускает цикл GUI
+    webview.start(icon="logo.ico")

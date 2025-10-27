@@ -352,23 +352,68 @@ class SingleChat {
         document.body.style.overflow = 'hidden';
     }
 
+    showInputErrorModal(message) {
+        const modal = document.getElementById('input-error-modal');
+        const messageElement = document.getElementById('input-error-message');
+        const closeBtn = document.querySelector('.close-input-error-modal');
+        const confirmBtn = document.getElementById('confirm-input-error-btn');
+        
+        if (messageElement) {
+            messageElement.textContent = message || 'Произошла ошибка ввода';
+        }
+        
+        // Функция закрытия модального окна
+        const closeModal = () => {
+            modal.style.display = 'none';
+        };
+        
+        // Обработчики событий
+        closeBtn.onclick = closeModal;
+        confirmBtn.onclick = closeModal;
+        
+        // Закрытие при клике вне модального окна
+        window.onclick = (event) => {
+            if (event.target === modal) {
+                closeModal();
+            }
+        };
+        
+        // Закрытие по Escape
+        const handleEscape = (e) => {
+            if (e.key === 'Escape' && modal.style.display === 'block') {
+                closeModal();
+                document.removeEventListener('keydown', handleEscape);
+            }
+        };
+        document.addEventListener('keydown', handleEscape);
+        
+        // Показываем модальное окно
+        modal.style.display = 'block';
+    }
+
     // Создание чата из модального окна (обновленная версия)
     async createChatFromModal() {
         const titleInput = document.getElementById('chat-title');
         const modelSelect = document.getElementById('chat-model');
         const systemPromptInput = document.getElementById('system-prompt');
-        
-        const title = titleInput.value.trim();
+        let title = titleInput.value.trim();
         const modelUrl = modelSelect.value;
         const systemPrompt = systemPromptInput.value.trim();
         
+        // Ограничиваем длину названия чата до 50 символов
+        if (title.length > 50) {
+            title = title.substring(0, 50);
+        }
+        
         if (!title) {
-            alert('Пожалуйста, введите название чата');
+            // Заменяем alert на модальное окно
+            this.showInputErrorModal('Пожалуйста, введите название чата');
             return;
         }
         
         if (!modelUrl) {
-            alert('Пожалуйста, выберите модель ИИ');
+            // Заменяем alert на модальное окно
+            this.showInputErrorModal('Пожалуйста, выберите модель ИИ');
             return;
         }
         
@@ -382,7 +427,7 @@ class SingleChat {
                 body: JSON.stringify({
                     title: title,
                     model: modelUrl,
-                    system_prompt: systemPrompt || undefined
+                    system_prompt: systemPrompt || undefined // Не добавляем, если пустой
                 })
             });
             
@@ -391,8 +436,8 @@ class SingleChat {
                 this.loadChat(newChat.id);
                 this.loadChatsList();
                 
-                // Закрываем модальное окно ПРАВИЛЬНО
-                this.closeModal('new-chat-modal');
+                // Закрываем модальное окно
+                document.getElementById('new-chat-modal').style.display = 'none';
                 
                 // Закрываем сайдбар на мобильных
                 if (window.innerWidth <= 768) {
@@ -400,11 +445,11 @@ class SingleChat {
                 }
             } else {
                 console.error('Ошибка создания чата');
-                alert('Ошибка создания чата');
+                this.showInputErrorModal('Ошибка создания чата');
             }
         } catch (error) {
             console.error('Ошибка подключения:', error);
-            alert('Ошибка подключения к серверу');
+            this.showInputErrorModal('Ошибка подключения к серверу');
         }
     }
 
@@ -467,19 +512,25 @@ class SingleChat {
         const titleInput = document.getElementById('settings-chat-title');
         const modelSelect = document.getElementById('settings-chat-model');
         const systemPromptInput = document.getElementById('settings-system-prompt');
-        
         const chatId = chatIdInput.value;
-        const title = titleInput.value.trim();
+        let title = titleInput.value.trim();
         const modelUrl = modelSelect.value;
         const systemPrompt = systemPromptInput.value.trim();
         
+        // Ограничиваем длину названия чата до 50 символов
+        if (title.length > 50) {
+            title = title.substring(0, 50);
+        }
+        
         if (!title) {
-            alert('Пожалуйста, введите название чата');
+            // Заменяем alert на модальное окно
+            this.showInputErrorModal('Пожалуйста, введите название чата');
             return;
         }
         
         if (!modelUrl) {
-            alert('Пожалуйста, выберите модель ИИ');
+            // Заменяем alert на модальное окно
+            this.showInputErrorModal('Пожалуйста, выберите модель ИИ');
             return;
         }
         
@@ -492,7 +543,7 @@ class SingleChat {
                 // Обновляем данные
                 chatData.title = title;
                 chatData.model = modelUrl;
-                chatData.system_prompt = systemPrompt || undefined;
+                chatData.system_prompt = systemPrompt || undefined; // Не добавляем, если пустой
                 
                 // Сохраняем обновленные данные
                 const updateResponse = await fetch(`/api/chats/${chatId}`, {
@@ -515,20 +566,19 @@ class SingleChat {
                     
                     this.loadChatsList();
                     
-                    // Закрываем модальное окно ПРАВИЛЬНО
-                    this.closeModal('chat-settings-modal');
-                    
+                    // Закрываем модальное окно
+                    document.getElementById('chat-settings-modal').style.display = 'none';
                 } else {
                     console.error('Ошибка сохранения настроек чата');
-                    alert('Ошибка сохранения настроек чата');
+                    this.showInputErrorModal('Ошибка сохранения настроек чата');
                 }
             } else {
                 console.error('Ошибка загрузки данных чата');
-                alert('Ошибка загрузки данных чата');
+                this.showInputErrorModal('Ошибка загрузки данных чата');
             }
         } catch (error) {
             console.error('Ошибка подключения:', error);
-            alert('Ошибка подключения к серверу');
+            this.showInputErrorModal('Ошибка подключения к серверу');
         }
     }
 
