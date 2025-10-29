@@ -40,9 +40,9 @@ logging.info(f"Файл конфигурации {CONFIG_PATH} удалён по
 HISTORY_PATH = os.path.join(os.path.dirname(__file__), "chats", config["chat"])
 HISTORY_FILE = load_json(HISTORY_PATH)
 
-USER_SYSTEM_PROMPT = HISTORY_FILE["system_prompt"]
-MODEL = HISTORY_FILE["model"]
-REASONING_MAX = HISTORY_FILE["reasoning_len"]
+USER_SYSTEM_PROMPT = HISTORY_FILE.get("system_prompt",'')
+MODEL = HISTORY_FILE.get("model")
+REASONING_MAX = HISTORY_FILE.get("reasoning_len")
 KYES_PATH ="api_keys.json"
 if not os.path.exists(KYES_PATH): KYES_PATH ="api_keys.example.json"
 API_KEYS_P = load_json(KYES_PATH)
@@ -75,7 +75,7 @@ def simulate_progress_real_time(stop_event, max_percent=80, total_time=35):
         elapsed = time.time() - start_time
         progress =  (elapsed / (elapsed + total_time/2.5)) * max_percent
         save_history({}, 'generating', progress=min(67, progress))
-        time.sleep(0.5)
+        time.sleep(1)
 
 def load_history():
     """Загружает историю диалога из файла"""
@@ -97,7 +97,7 @@ def save_history(response, state = None, progress = 0):
     reasoning = response.get('choices',[{}])[0].get('message',{}).get('reasoning','')
     if not answer:
         if state == "start":
-            text = f"[LOADING:10]Создание запроса в API...[/LOADING]"
+            text = f"[LOADING:10]Создание запроса...[/LOADING]"
         elif state == 'generating':
             text = f"[LOADING:{int(20 + progress)}]Генерация ответа...[/LOADING]"
     elif reasoning:
@@ -128,16 +128,17 @@ def send_message_api(history):
         "messages": history,
         "usage": {"include": True}
     }
-    if REASONING_MAX>0: data["reasoning"] = {"max_tokens": REASONING_MAX}
-
+    if REASONING_MAX>0:
+        data["reasoning"] = {"max_tokens": REASONING_MAX }
+    else:
+        data["reasoning"] = {"exclude": True} 
+    
     try:
         logging.info("Отправка сообщения в API...")
         stop_event = threading.Event()
         thread = threading.Thread(target=simulate_progress_real_time, args=(stop_event, 80, 35))
         thread.start()
         response = requests.post(API_URL, headers=headers, json=data, timeout=60)
-        stop_event.set()
-        thread.join()
         response.raise_for_status()
         result = response.json()
         logging.info(f"Ответ от API успешно получен: {result}")
@@ -189,6 +190,8 @@ def send_message_api(history):
 
     finally:
         try:
+            stop_event.set()
+            thread.join()
             response_del = requests.delete(
                 f"https://openrouter.ai/api/v1/keys/{api_data['data']['hash']}",
                 headers={"Authorization": f"Bearer {api_data['p_api']}"}
@@ -204,7 +207,7 @@ def main():
         history = load_history()
         answer = send_message_api(history)
         if answer:
-            answer['choices'][0]['message']['content'] += " "
+            if answer['choices'][0]['message']['content'] == "" : answer['choices'][0]['message']['content'] += "[RESPONSE]\n*треск сверчков*\n[/RESPONSE]"
             save_history(answer)
             logging.info("Ответ сохранён в истории.")
         else:
