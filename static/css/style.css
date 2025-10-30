@@ -33,19 +33,19 @@
 
 /* Светлая тема */
 [data-theme="light"] {
-    --primary-color: #000000;
-    --primary-dark: #000000;
-    --secondary-color: #0e0e0e;
-    --secondary-dark: #000000;
-    --background-gradient: linear-gradient(-45deg, #000000, #000000, #000000, #000000);
-    --text-color: #00890e;
-    --text-secondary: #8b8b8b;
-    --card-bg: rgba(11, 44, 0, 0.8);
-    --card-border: rgba(9, 112, 0, 1);
-    --shadow-color: rgba(35, 173, 0, 0.3);
-    --icon-primary-color: #0ba500;
-    --icon-secondary-color: #174809;
-    --bold-text-color: #ffffff;
+    --primary-color: #cb00e6;
+    --primary-dark: #4f46e5;
+    --secondary-color: #5f00f7;
+    --secondary-dark: #4143af;
+    --background-gradient: linear-gradient(-45deg, #273f79, #541d74, #1c385e, #48168a);
+    --text-color: #f1f5f9;
+    --text-secondary: rgba(241, 245, 249, 0.9);
+    --card-bg: rgba(30, 41, 59, 0.7);
+    --card-border: rgba(71, 85, 105, 1);
+    --shadow-color: rgba(0, 0, 0, 0.5);
+    --icon-primary-color: #c918c0;
+    --icon-secondary-color: #60a5fa;
+    --bold-text-color: #d3d7f8;
 }
 
 
@@ -71,10 +71,6 @@ body {
     background-size: 400% 400%;
     animation: gradientShift 8s ease infinite;
     color: var(--text-color);
-}
-
-[data-theme="light"] body {
-    font-family: Cascadia Code;
 }
 
 /* Анимация переливающегося фона */
@@ -183,13 +179,6 @@ body {
     font-size: 2.5rem;
     margin-bottom: 1rem;
     transition: all 0.4s ease;
-}
-
-[data-theme="light"] .btn-icon {
-    background: var(--text-color);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
 }
 
 .btn-text {
@@ -429,10 +418,6 @@ input:checked + .slider:before {
     border: 2px solid var(--primary-color);
 }
 
-[data-theme="light"] .theme-option.active {
-    background: rgba(74, 202, 0, 0.3);
-}
-
 .theme-preview {
     width: 80px;
     height: 50px;
@@ -450,7 +435,7 @@ input:checked + .slider:before {
 }
 
 .light-theme {
-    background: linear-gradient(135deg, #000000, #4aba00);
+    background: linear-gradient(135deg, #8716c9, #3e4bbe);
 }
 
 .theme-option span {
@@ -513,19 +498,9 @@ input:checked + .slider:before {
     font-weight: 500;
 }
 
-[data-theme="light"] .delete-btn {
-    background: rgba(26, 137, 12, 0.2);
-    border: 1px solid rgba(21, 123, 18, 0.5);
-    color: #3ce60e;
-}
-
 .delete-btn:hover {
     background: rgba(239, 68, 68, 0.3);
     transform: scale(1.05);
-}
-
-[data-theme="light"] .delete-btn:hover {
-    background: rgba(61, 161, 21, 0.3);
 }
 
 /* Добавление модели */
@@ -587,27 +562,10 @@ input:checked + .slider:before {
     min-width: 200px;
 }
 
-/* Адаптация для светлой темы в input полях */
-[data-theme="light"] .model-input-group input {
-    background: rgba(6, 118, 0, 0.5);
-}
-
-[data-theme="light"] .setting-item,
-[data-theme="light"] .theme-option,
-[data-theme="light"] .model-item {
-    background: rgba(6, 118, 0, 0.5);
-}
-
 /* Универсальный стиль для текста в темах */
 .theme-option,
 .theme-option * {
     color: var(--text-color) !important;
-}
-
-/* Специфичные стили для светлой темы */
-[data-theme="light"] .theme-option,
-[data-theme="light"] .theme-option * {
-    color: #1e293b !important;
 }
 
 /* Специфичные стили для темной темы */
@@ -669,21 +627,9 @@ input:checked + .slider:before {
     animation: pulseExit 2s infinite;
 }
 
-[data-theme="light"] .exit-btn {
-    background: linear-gradient(135deg, #51a615 0%, #164d11 100%);
-}
-
-[data-theme="light"] .exit-btn span{
-    color: #000000;
-}
-
 .exit-btn:hover {
     transform: translateY(-5px) scale(1.02);
     box-shadow: 0 12px 30px rgba(239, 68, 68, 0.3);
-}
-
-[data-theme="light"] .exit-btn:hover {
-    box-shadow: 0 12px 30px rgba(23, 128, 30, 0.3);
 }
 
 @keyframes pulseExit {
