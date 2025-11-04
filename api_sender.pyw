@@ -84,7 +84,10 @@ def load_history():
         if message["sender"] == "ai":
             history.append({"role": "assistant", "reasoning": message.get("reasoning", ""), "content": message.get("answer", "")})
         elif message["sender"] == "user":
-            history.append({"role": "user", "content": message.get("text","")})
+            filename = ""
+            for file_num in range(len(message.get("filename", []))):
+                filename += f"{file_num + 1} - {message["filename"][file_num]}\n    {message["file"][file_num]}\n"
+            history.append({"role": "user", "content": message.get("text", "") + f"[FILE]{filename}[/FILE]"})
         elif message["sender"] == "error":
             history.pop()
     logging.info(f"История диалога загружена. Всего сообщений: {len(history)}")
