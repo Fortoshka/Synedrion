@@ -1,5 +1,6 @@
 from flask import Flask, render_template, jsonify, request
 from datetime import datetime
+from werkzeug.utils import secure_filename
 import time
 import threading
 import webview
@@ -8,6 +9,7 @@ import os
 import sys
 import uuid
 import subprocess
+from file_handler import FileHandler
 
 app = Flask(__name__)
 
@@ -38,14 +40,11 @@ def get_app_version():
         if os.path.exists(version_file_path):
             with open(version_file_path, 'r', encoding='utf-8') as f:
                 version = f.read().strip()
-                # Если файл пустой, возвращаем значение по умолчанию
                 return version if version else '1.0.0'
         else:
-            # Если файл не существует, возвращаем значение по умолчанию
             return '1.0.0'
     except Exception as e:
         print(f"Ошибка чтения файла версии: {e}")
-        # В случае ошибки возвращаем значение по умолчанию
         return '1.0.0'
 
 def load_settings():
@@ -410,6 +409,48 @@ def create_request():
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/process_file', methods=['POST'])
+def process_file():
+    """Обработка загруженного файла"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'error': 'Файл не найден'}), 400
+        
+        file = request.files['file']
+        file_type = request.form.get('file_type', 'text')
+        
+        if file.filename == '':
+            return jsonify({'success': False, 'error': 'Файл не выбран'}), 400
+        
+        # Создаем временную директорию для загруженных файлов
+        temp_dir = os.path.join(os.path.dirname(__file__), 'temp_uploads')
+        if not os.path.exists(temp_dir):
+            os.makedirs(temp_dir)
+        
+        # Сохраняем файл временно
+        filename = secure_filename(file.filename)
+        temp_path = os.path.join(temp_dir, filename)
+        file.save(temp_path)
+        
+        # Обрабатываем файл в зависимости от типа
+        if file_type == 'image':
+            result = FileHandler.process_image(temp_path)
+        elif file_type == 'text':
+            result = FileHandler.process_text_file(temp_path)
+        else:
+            result = {'success': False, 'error': 'Неизвестный тип файла'}
+        
+        # Удаляем временный файл
+        try:
+            os.remove(temp_path)
+        except:
+            pass
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
     
 @app.route('/api/devlog')
 def get_devlog():

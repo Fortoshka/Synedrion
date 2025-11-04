@@ -5,6 +5,7 @@ class SingleChat {
         this.pollingInterval = null;
         this.lastMessageCount = 0;
         this.isWaitingForAI = false;
+        this.attachedFiles = []; // Массив для хранения прикрепленных файлов
         this.init();
     }
 
@@ -35,6 +36,9 @@ class SingleChat {
         
         // Обработчики для модального окна настроек чата
         this.setupSettingsModalHandlers();
+        
+        // Обработчики для кнопки прикрепления файлов
+        this.setupAttachFileHandlers();
         
         // Обработчик для кнопки меню на мобильных устройствах
         const toggleButton = document.getElementById('toggle-sidebar');
@@ -135,6 +139,143 @@ class SingleChat {
                 closeModal();
             }
         });
+    }
+
+    // Настройка обработчиков для кнопки прикрепления файлов
+    setupAttachFileHandlers() {
+        const attachBtn = document.getElementById('attach-file-btn');
+        const attachMenu = document.getElementById('attach-menu');
+        const imageInput = document.getElementById('file-input-image');
+        const textInput = document.getElementById('file-input-text');
+        
+        if (!attachBtn || !attachMenu || !imageInput || !textInput) return;
+        
+        // Открытие/закрытие меню при клике на кнопку
+        attachBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            attachMenu.classList.toggle('hidden');
+        });
+        
+        // Закрытие меню при клике вне его
+        document.addEventListener('click', (e) => {
+            if (!attachMenu.contains(e.target) && e.target !== attachBtn) {
+                attachMenu.classList.add('hidden');
+            }
+        });
+        
+        // Обработчики для пунктов меню
+        const menuItems = attachMenu.querySelectorAll('.attach-menu-item');
+        menuItems.forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const fileType = item.dataset.type;
+                this.handleAttachFile(fileType);
+                attachMenu.classList.add('hidden');
+            });
+        });
+        
+        // Обработчик выбора изображения
+        imageInput.addEventListener('change', (e) => {
+            if (e.target.files && e.target.files[0]) {
+                this.processSelectedFile(e.target.files[0], 'image');
+                e.target.value = ''; // Сброс input для повторного выбора
+            }
+        });
+        
+        // Обработчик выбора текстового файла
+        textInput.addEventListener('change', (e) => {
+            if (e.target.files && e.target.files[0]) {
+                this.processSelectedFile(e.target.files[0], 'text');
+                e.target.value = ''; // Сброс input для повторного выбора
+            }
+        });
+    }
+
+    // Обработка выбора типа файла
+    handleAttachFile(fileType) {
+        console.log(`[ATTACH] Выбран тип файла: ${fileType}`);
+        
+        if (fileType === 'image') {
+            document.getElementById('file-input-image').click();
+        } else if (fileType === 'text') {
+            document.getElementById('file-input-text').click();
+        }
+    }
+    
+    // Обработка выбранного файла
+    async processSelectedFile(file, fileType) {
+        console.log(`[ATTACH] Файл выбран:`, file.name, `(${fileType})`);
+        
+        // Пока поддерживаем только .txt файлы
+        if (fileType === 'text' && !file.name.toLowerCase().endsWith('.txt')) {
+            this.showNotification('Поддерживаются только .txt файлы', 'error');
+            return;
+        }
+        
+        // Пока поддерживаем только текстовые файлы
+        if (fileType !== 'text') {
+            this.showNotification('Пока поддерживаются только текстовые файлы', 'error');
+            return;
+        }
+        
+        try {
+            // Отправляем файл на сервер для обработки
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('file_type', fileType);
+            
+            const response = await fetch('/api/process_file', {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                console.log('[ATTACH] Файл успешно обработан:', result);
+                
+                // Сохраняем данные файла локально
+                this.attachedFiles.push({
+                    filename: result.filename,
+                    content: result.content
+                });
+                
+                // Обновляем UI
+                this.updateFileIndicator();
+                
+                this.showNotification(`Файл "${result.filename}" прикреплен`, 'success');
+            } else {
+                console.error('[ATTACH] Ошибка обработки файла:', result.error);
+                this.showNotification(`Ошибка: ${result.error}`, 'error');
+            }
+        } catch (error) {
+            console.error('[ATTACH] Ошибка при обработке файла:', error);
+            this.showNotification('Ошибка при обработке файла', 'error');
+        }
+    }
+    
+    // Обновление индикатора прикрепленных файлов
+    updateFileIndicator() {
+        const indicator = document.getElementById('file-indicator');
+        const count = document.getElementById('file-count');
+        
+        if (!indicator || !count) return;
+        
+        if (this.attachedFiles.length > 0) {
+            indicator.classList.remove('hidden');
+            count.textContent = this.attachedFiles.length;
+            
+            // Обновляем tooltip с именами файлов
+            const fileNames = this.attachedFiles.map(f => f.filename).join('\n');
+            indicator.setAttribute('title', fileNames);
+        } else {
+            indicator.classList.add('hidden');
+            indicator.setAttribute('title', '');
+        }
     }
 
     initReasoningLenControls(modal) {
@@ -713,61 +854,63 @@ class SingleChat {
 
     processThoughtsAndResponseTags(text, codeBlocks) {
         let result = '';
-        let codeBlockIndex = 0;
         
-        // Заменяем плейсхолдеры блоков кода на HTML
-        const textWithCode = text.replace(/\{\{CODE_BLOCK_(\d+)\}\}/g, (match, index) => {
-            const codeBlock = codeBlocks[index];
-            if (codeBlock) {
-                return this.createCodeBlockHTML(codeBlock.language, codeBlock.code);
-            }
-            return '';
-        });
+        // НЕ заменяем плейсхолдеры сразу, работаем с исходным текстом
+        const textWithPlaceholders = text;
         
         // Ищем теги [THOUGHTS] и [/THOUGHTS]
         const thoughtsRegex = /\[THOUGHTS\](.*?)\[\/THOUGHTS\]/s;
-        const thoughtsMatch = textWithCode.match(thoughtsRegex);
+        const thoughtsMatch = textWithPlaceholders.match(thoughtsRegex);
         
         // Ищем теги [RESPONSE] и [/RESPONSE]
         const responseRegex = /\[RESPONSE\](.*?)\[\/RESPONSE\]/s;
-        const responseMatch = textWithCode.match(responseRegex);
+        const responseMatch = textWithPlaceholders.match(responseRegex);
         
         // Извлекаем содержимое тегов
         const thoughtsContent = thoughtsMatch && thoughtsMatch[1] ? thoughtsMatch[1].trim() : '';
         const responseContent = responseMatch && responseMatch[1] ? responseMatch[1].trim() : '';
         
-        // Если нет специальных тегов, отображаем как обычный текст
-        if (!thoughtsMatch && !responseMatch && !textWithCode.includes('<div class="ai-code-block">')) {
-            return `<div class="text">${this.escapeHtml(textWithCode)}</div>`;
+        // Проверяем наличие блоков кода
+        const hasCodeBlocks = codeBlocks && codeBlocks.length > 0;
+        
+        // Если нет специальных тегов и нет блоков кода, отображаем как обычный текст
+        if (!thoughtsMatch && !responseMatch && !hasCodeBlocks) {
+            return `<div class="text">${this.escapeHtml(textWithPlaceholders)}</div>`;
         }
         
-        // Добавляем мысли, если есть
+        // Добавляем мысли, если есть (без плейсхолдеров кода)
         if (thoughtsContent) {
-            result += `
-                <div class="ai-thoughts">
-                    <span class="ai-thoughts-label">Мысли:</span>
-                    ${this.escapeHtml(thoughtsContent)}
-                </div>
-            `;
+            const cleanThoughts = thoughtsContent.replace(/\{\{CODE_BLOCK_\d+\}\}/g, '').trim();
+            if (cleanThoughts) {
+                result += `
+                    <div class="ai-thoughts">
+                        <span class="ai-thoughts-label">Мысли:</span>
+                        ${this.escapeHtml(cleanThoughts)}
+                    </div>
+                `;
+            }
         }
         
-        // Добавляем основной ответ или оставшийся текст
+        // Добавляем основной ответ или оставшийся текст (без плейсхолдеров кода)
         if (responseContent) {
-            result += `<div class="ai-response">${this.escapeHtml(responseContent)}</div>`;
+            const cleanResponse = responseContent.replace(/\{\{CODE_BLOCK_\d+\}\}/g, '').trim();
+            if (cleanResponse) {
+                result += `<div class="ai-response">${this.escapeHtml(cleanResponse)}</div>`;
+            }
         } else if (thoughtsContent) {
             // Если есть только мысли, показываем оставшийся текст как ответ
-            let remainingText = textWithCode
+            let remainingText = textWithPlaceholders
                 .replace(thoughtsMatch[0], '')
-                .replace(/\{\{CODE_BLOCK_\d+\}\}/g, '') // Убираем плейсхолдеры
+                .replace(/\{\{CODE_BLOCK_\d+\}\}/g, '')
                 .trim();
             
             if (remainingText) {
                 result += `<div class="ai-response">${this.escapeHtml(remainingText)}</div>`;
             }
         } else {
-            // Если нет тегов THOUGHTS/RESPONSE, но есть код или другой текст
-            const cleanedText = textWithCode
-                .replace(/\{\{CODE_BLOCK_\d+\}\}/g, '') // Убираем плейсхолдеры
+            // Если нет тегов THOUGHTS/RESPONSE, но есть текст или код
+            const cleanedText = textWithPlaceholders
+                .replace(/\{\{CODE_BLOCK_\d+\}\}/g, '')
                 .trim();
             
             if (cleanedText) {
@@ -775,13 +918,12 @@ class SingleChat {
             }
         }
         
-        // Добавляем блоки кода в конец
-        codeBlocks.forEach((codeBlock, index) => {
-            const placeholder = `{{CODE_BLOCK_${index}}}`;
-            if (textWithCode.includes(placeholder)) {
+        // Теперь добавляем все блоки кода в конец
+        if (hasCodeBlocks) {
+            codeBlocks.forEach((codeBlock, index) => {
                 result += this.createCodeBlockHTML(codeBlock.language, codeBlock.code);
-            }
-        });
+            });
+        }
         
         return result;
     }
@@ -886,10 +1028,49 @@ class SingleChat {
                         for (let i = this.lastMessageCount; i < newMessageCount; i++) {
                             const newMessage = updatedChatData.messages[i];
                             // Проверяем, не добавлено ли сообщение уже
-                            const isMessageAlreadyAdded = this.currentChatData.messages && 
-                                this.currentChatData.messages.some(msg => msg.id === newMessage.id);
+                            // Для LOADING сообщений проверяем по содержимому, а не по ID
+                            let isMessageAlreadyAdded = false;
+                            
+                            if (this.currentChatData.messages) {
+                                // Сначала проверяем по ID (стандартная проверка)
+                                isMessageAlreadyAdded = this.currentChatData.messages.some(msg => msg.id === newMessage.id);
+                                
+                                // Если не найдено по ID, проверяем LOADING сообщения в DOM
+                                if (!isMessageAlreadyAdded) {
+                                    const loadingInfo = this.extractLoadingProgress(newMessage.text);
+                                    console.log('[CHECK] Новое сообщение. isLoading:', loadingInfo.isLoading, 'progress:', loadingInfo.progress);
+                                    if (loadingInfo.isLoading) {
+                                        console.log('[CHECK] Это LOADING сообщение! Ищем существующее в DOM...');
+                                        // Ищем последнее AI LOADING сообщение в DOM
+                                        const allMessages = document.querySelectorAll('.message.ai');
+                                        console.log('[CHECK] Всего AI сообщений в DOM:', allMessages.length);
+                                        let existingLoadingElement = null;
+                                        
+                                        // Ищем с конца (последнее сообщение)
+                                        for (let i = allMessages.length - 1; i >= 0; i--) {
+                                            const msgElement = allMessages[i];
+                                            const loadingContainer = msgElement.querySelector('.ai-loading-container');
+                                            console.log('[CHECK] Проверяем AI сообщение', i, '- есть LOADING:', !!loadingContainer);
+                                            if (loadingContainer) {
+                                                existingLoadingElement = msgElement;
+                                                console.log('[CHECK] Найдено LOADING сообщение в DOM!');
+                                                break;
+                                            }
+                                        }
+                                        
+                                        if (existingLoadingElement) {
+                                            isMessageAlreadyAdded = true;
+                                            console.log('[CHECK] Обновляем существующее LOADING сообщение в DOM');
+                                            this.updateMessageContent(existingLoadingElement, newMessage);
+                                        } else {
+                                            console.log('[CHECK] LOADING сообщение в DOM не найдено, добавим новое');
+                                        }
+                                    }
+                                }
+                            }
                             
                             if (!isMessageAlreadyAdded) {
+                                console.log('[CHECK] Добавляем новое сообщение');
                                 this.addMessageToChatWithoutAnimation(newMessage);
                             }
                         }
@@ -897,23 +1078,42 @@ class SingleChat {
                         // Обновляем данные чата
                         this.currentChatData = updatedChatData;
                         this.lastMessageCount = newMessageCount;
-                        
-                        // Прокручиваем вниз
-                        const messagesElement = document.getElementById('chat-messages');
-                        if (messagesElement) {
-                            messagesElement.scrollTop = messagesElement.scrollHeight;
-                        }
-                        
                     } else if (newMessageCount === this.lastMessageCount) {
                         // Количество сообщений не изменилось, но содержимое могло измениться
-                        // Это случай, когда [LOADING] заменяется на нормальное сообщение
+                        console.log('[CHECK_SAME] Количество сообщений не изменилось, проверяем содержимое...');
                         
                         // Проверяем, изменились ли сообщения
                         const hasMessagesChanged = JSON.stringify(updatedChatData.messages) !== 
                                                 JSON.stringify(this.currentChatData.messages);
                         
                         if (hasMessagesChanged) {
-                            // Сообщения изменились - перерисовываем чат БЕЗ анимации
+                            console.log('[CHECK_SAME] Сообщения изменились!');
+                            
+                            // Проверяем, есть ли LOADING сообщение в новых данных
+                            const lastMessage = updatedChatData.messages[updatedChatData.messages.length - 1];
+                            if (lastMessage && lastMessage.sender === 'ai') {
+                                const loadingInfo = this.extractLoadingProgress(lastMessage.text);
+                                
+                                if (loadingInfo.isLoading) {
+                                    console.log('[CHECK_SAME] Последнее сообщение - LOADING! Обновляем плавно...');
+                                    // Это LOADING сообщение - ищем его в DOM и обновляем плавно
+                                    const allMessages = document.querySelectorAll('.message.ai');
+                                    if (allMessages.length > 0) {
+                                        const lastAIMessage = allMessages[allMessages.length - 1];
+                                        const loadingContainer = lastAIMessage.querySelector('.ai-loading-container');
+                                        
+                                        if (loadingContainer) {
+                                            console.log('[CHECK_SAME] Найдено LOADING сообщение в DOM, обновляем...');
+                                            this.updateMessageContent(lastAIMessage, lastMessage);
+                                            this.currentChatData = updatedChatData;
+                                            return; // Выходим, не перерисовываем весь чат
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            // Если не LOADING или не нашли - перерисовываем весь чат
+                            console.log('[CHECK_SAME] Не LOADING или не найдено, перерисовываем весь чат');
                             this.currentChatData = updatedChatData;
                             this.renderChatWithoutAnimation();
                         } else {
@@ -929,6 +1129,9 @@ class SingleChat {
                     
                     // Проверяем состояние ожидания
                     this.updateWaitingState();
+                    
+                    // Обновляем состояние кнопки отправки
+                    this.updateSendButtonState();
                 }
             }
         } catch (error) {
@@ -994,9 +1197,8 @@ class SingleChat {
             inputElement.placeholder = 'Введите ваше сообщение...';
         }
         
-        if (sendButton) {
-            sendButton.disabled = this.isWaitingForAI;
-        }
+        // Обновляем состояние кнопки отправки на основе последнего сообщения
+        this.updateSendButtonState();
     }
 
     updateMessageContent(messageElement, messageData) {
@@ -1007,34 +1209,73 @@ class SingleChat {
         
         // Для сообщений ИИ обновляем содержимое с обработкой тегов
         if (messageData.sender === 'ai') {
-            const processedContent = this.processAllAITags(messageData.text);
+            // Проверяем, является ли сообщение LOADING сообщением
+            const loadingInfo = this.extractLoadingProgress(messageData.text);
             
-            // Находим контейнер содержимого сообщения
-            const contentContainer = messageElement.querySelector('.message-content');
-            if (contentContainer) {
-                contentContainer.innerHTML = processedContent;
+            console.log('[UPDATE] updateMessageContent вызван. isLoading:', loadingInfo.isLoading, 'progress:', loadingInfo.progress);
+            
+            if (loadingInfo.isLoading) {
+                console.log('[UPDATE] Это LOADING сообщение! Пытаемся плавно обновить...');
+                // Это LOADING сообщение - пытаемся обновить ПЛАВНО без пересоздания
+                const success = this.updateLoadingMessageProgress(messageElement, loadingInfo.progress, loadingInfo.text);
+                
+                // Если не удалось обновить (например, структура не соответствует), создаем новое содержимое
+                if (!success) {
+                    console.log('[UPDATE] Плавное обновление не удалось, пересоздаем содержимое');
+                    const contentContainer = messageElement.querySelector('.message-content');
+                    if (contentContainer) {
+                        contentContainer.innerHTML = this.createLoadingMessageHTML(loadingInfo.progress, loadingInfo.text);
+                    }
+                } else {
+                    console.log('[UPDATE] Плавное обновление успешно!');
+                }
+            } else {
+                // Это обычное сообщение - обновляем полностью
+                const processedContent = this.processAllAITags(messageData.text);
+                
+                // Находим контейнер содержимого сообщения
+                const contentContainer = messageElement.querySelector('.message-content');
+                if (contentContainer) {
+                    contentContainer.innerHTML = processedContent;
+                }
             }
             
             // Обновляем или добавляем кнопку перегенерации
+            // Используем уже полученную информацию о LOADING статусе
+            const isLoading = loadingInfo.isLoading;
+            const isError = messageData.sender === 'error';
+            
+            console.log('[REGEN] Проверка сообщения - isLoading:', isLoading, 'isError:', isError);
+            
             let regenerateBtn = messageElement.querySelector('.regenerate-btn');
-            if (!regenerateBtn) {
-                regenerateBtn = document.createElement('button');
-                regenerateBtn.className = 'regenerate-btn';
-                regenerateBtn.textContent = '↻ Перегенерировать';
-                messageElement.appendChild(regenerateBtn);
+            
+            if (isError || (!isLoading && messageData.sender === 'ai')) {
+                // Показываем кнопку для error сообщений и обычных AI сообщений (не LOADING)
+                if (!regenerateBtn) {
+                    regenerateBtn = document.createElement('button');
+                    regenerateBtn.className = 'regenerate-btn';
+                    regenerateBtn.textContent = '↻ Перегенерировать';
+                    messageElement.appendChild(regenerateBtn);
+                }
+                regenerateBtn.dataset.messageId = messageData.id;
+                
+                // Назначаем обработчик события (удаляем старый, если есть)
+                const newHandler = (e) => {
+                    e.stopPropagation();
+                    this.regenerateMessage(messageData.id);
+                };
+                
+                // Удаляем все предыдущие обработчики
+                const clone = regenerateBtn.cloneNode(true);
+                regenerateBtn.parentNode.replaceChild(clone, regenerateBtn);
+                clone.addEventListener('click', newHandler);
+            } else {
+                // Удаляем кнопку для LOADING сообщений
+                if (regenerateBtn) {
+                    console.log('[REGEN] Удаляем кнопку перегенерации для LOADING сообщения');
+                    regenerateBtn.remove();
+                }
             }
-            regenerateBtn.dataset.messageId = messageData.id;
-            
-            // Назначаем обработчик события (удаляем старый, если есть)
-            const newHandler = (e) => {
-                e.stopPropagation();
-                this.regenerateMessage(messageData.id);
-            };
-            
-            // Удаляем все предыдущие обработчики
-            const clone = regenerateBtn.cloneNode(true);
-            regenerateBtn.parentNode.replaceChild(clone, regenerateBtn);
-            clone.addEventListener('click', newHandler);
         } else {
             // Для сообщений пользователя просто обновляем текст
             const textElement = messageElement.querySelector('.text');
@@ -1047,56 +1288,7 @@ class SingleChat {
         this.initCodeCopyButtons();
     }
 
-    addMessageToChatWithoutAnimation(message) {
-        const messagesElement = document.getElementById('chat-messages');
-        if (!messagesElement) return;
-
-        const messageElement = document.createElement('div');
-        messageElement.className = `message ${message.sender === 'user' ? 'user' : 'ai'}`;
-        
-        if (message.id !== undefined) {
-            messageElement.dataset.messageId = message.id;
-        }
-        
-        const senderName = message.sender === 'user' ? 'Вы' : 'ИИ';
-        
-        // Для сообщений ИИ добавляем кнопку перегенерации и обрабатываем теги
-        if (message.sender === 'ai') {
-            // Сначала обрабатываем теги
-            const processedContent = this.processAllAITags(message.text);
-            
-            messageElement.innerHTML = `
-                <div class="sender">${senderName}</div>
-                <div class="message-content">
-                    ${processedContent}
-                </div>
-                <button class="regenerate-btn" data-message-id="${message.id}">↻ Перегенерировать</button>
-            `;
-            
-            // Добавляем обработчик для кнопки перегенерации
-            const regenerateBtn = messageElement.querySelector('.regenerate-btn');
-            if (regenerateBtn) {
-                regenerateBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.regenerateMessage(message.id); 
-                });
-            }
-        } else {
-            messageElement.innerHTML = `
-                <div class="sender">${senderName}</div>
-                <div class="message-content">
-                    <div class="text">${this.escapeHtml(message.text)}</div>
-                </div>
-            `;
-        }
-        
-        messagesElement.appendChild(messageElement);
-        // НЕ прокручиваем здесь, это делается в renderChatWithoutAnimation
-        
-        // Инициализируем обработчики для кнопок копирования кода
-        this.initCodeCopyButtons();
-    }
-
+    // Отображение чата без анимации (для обновлений)
     renderChatWithoutAnimation() {
         if (!this.currentChatData) return;
         
@@ -1114,15 +1306,34 @@ class SingleChat {
             // Проверяем сообщения в данных чата
             if (this.currentChatData.messages && this.currentChatData.messages.length > 0) {
                 this.currentChatData.messages.forEach((message, index) => {
-                    // Проверяем, есть ли уже такое сообщение в UI
-                    const existingElementIndex = existingMessageIds.indexOf(message.id);
+                    // Проверяем, есть ли уже такое сообщение в UI по ID
+                    let existingElementIndex = existingMessageIds.indexOf(message.id);
+                    
+                    // Если не найдено по ID, проверяем LOADING сообщения по содержимому
+                    if (existingElementIndex === -1) {
+                        const loadingInfo = this.extractLoadingProgress(message.text);
+                        if (loadingInfo.isLoading) {
+                            // Ищем соответствующий элемент в DOM по содержимому
+                            for (let i = 0; i < existingMessageElements.length; i++) {
+                                const element = existingMessageElements[i];
+                                const elementMessageId = parseInt(element.dataset.messageId);
+                                if (elementMessageId && this.currentChatData.messages) {
+                                    const existingMessage = this.currentChatData.messages.find(msg => msg.id === elementMessageId);
+                                    if (existingMessage && this.isSameLoadingMessage(existingMessage, message)) {
+                                        existingElementIndex = i;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
                     
                     if (existingElementIndex !== -1) {
-                        // Сообщение уже существует - ОБНОВЛЯЕМ его содержимое
+                        // Сообщение уже существует - ОБНОВЛЯЕМ его содержимое БЕЗ АНИМАЦИИ
                         const existingElement = existingMessageElements[existingElementIndex];
                         this.updateMessageContent(existingElement, message);
                     } else {
-                        // Новое сообщение - ДОБАВЛЯЕМ его
+                        // Новое сообщение - ДОБАВЛЯЕМ его БЕЗ АНИМАЦИИ
                         this.addMessageToChatWithoutAnimation(message);
                     }
                 });
@@ -1149,15 +1360,100 @@ class SingleChat {
         
         // Обновляем состояние кнопки отправки
         const inputElement = document.getElementById('message-input');
-        const sendButton = document.getElementById('send-message-btn');
         
         if (inputElement) {
             inputElement.disabled = false;
         }
         
+        // Обновляем состояние кнопки отправки на основе последнего сообщения
+        this.updateSendButtonState();
+    }
+
+    // Обновление состояния ожидания
+    updateWaitingState() {
+        // Проверяем, есть ли сообщения и является ли последнее сообщение от пользователя
+        if (this.currentChatData && this.currentChatData.messages && this.currentChatData.messages.length > 0) {
+            const lastMessage = this.currentChatData.messages[this.currentChatData.messages.length - 1];
+            if (lastMessage.sender === 'user') {
+                this.isWaitingForAI = true;
+            } else if (lastMessage.sender === 'ai' || lastMessage.sender === 'error') {
+                this.isWaitingForAI = false;
+            }
+        } else {
+            this.isWaitingForAI = false;
+        }
+        
+        // Обновляем состояние кнопки отправки
+        const sendButton = document.getElementById('send-message-btn');
         if (sendButton) {
             sendButton.disabled = this.isWaitingForAI;
         }
+    }
+
+    addMessageToChatWithoutAnimation(message) {
+        const messagesElement = document.getElementById('chat-messages');
+        if (!messagesElement) return;
+
+        const messageElement = document.createElement('div');
+        messageElement.className = `message ${message.sender === 'user' ? 'user' : 'ai'}`;
+        
+        if (message.id !== undefined) {
+            messageElement.dataset.messageId = message.id;
+        }
+        
+        const senderName = message.sender === 'user' ? 'Вы' : 'ИИ';
+        
+        // Для сообщений ИИ добавляем кнопку перегенерации и обрабатываем теги
+        if (message.sender === 'ai') {
+            // Сначала обрабатываем теги
+            const processedContent = this.processAllAITags(message.text);
+            
+            // Проверяем, является ли сообщение LOADING или error
+            const loadingInfo = this.extractLoadingProgress(message.text);
+            const isLoading = loadingInfo.isLoading;
+            const isError = message.sender === 'error';
+            
+            console.log('[REGEN] Добавление сообщения - isLoading:', isLoading, 'isError:', isError);
+            
+            let regenerateButtonHtml = '';
+            if (isError || (!isLoading && message.sender === 'ai')) {
+                // Показываем кнопку для error сообщений и обычных AI сообщений (не LOADING)
+                regenerateButtonHtml = `<button class="regenerate-btn" data-message-id="${message.id}">↻ Перегенерировать</button>`;
+            }
+            
+            messageElement.innerHTML = `
+                <div class="sender">${senderName}</div>
+                <div class="message-content">
+                    ${processedContent}
+                </div>
+                ${regenerateButtonHtml}
+            `;
+            
+            // Добавляем обработчик для кнопки перегенерации (если есть)
+            const regenerateBtn = messageElement.querySelector('.regenerate-btn');
+            if (regenerateBtn) {
+                regenerateBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.regenerateMessage(message.id); 
+                });
+            }
+        } else {
+            messageElement.innerHTML = `
+                <div class="sender">${senderName}</div>
+                <div class="message-content">
+                    <div class="text">${this.escapeHtml(message.text)}</div>
+                </div>
+            `;
+        }
+        
+        messagesElement.appendChild(messageElement);
+        // НЕ прокручиваем здесь, это делается в renderChatWithoutAnimation
+        
+        // Инициализируем обработчики для кнопок копирования кода
+        this.initCodeCopyButtons();
+        
+        // Инициализируем обработчики для сворачивания мыслей (если есть)
+        this.initThoughtsToggles();
     }
 
     // Очистка чата
@@ -1245,10 +1541,23 @@ class SingleChat {
             // Сначала обрабатываем все теги (THOUGHTS, RESPONSE, CODE)
             const processedContent = this.processAllAITags(message.text);
             
+            // Проверяем, является ли сообщение LOADING или error
+            const loadingInfo = this.extractLoadingProgress(message.text);
+            const isLoading = loadingInfo.isLoading;
+            const isError = message.sender === 'error';
+            
+            console.log('[REGEN] Рендеринг сообщения - isLoading:', isLoading, 'isError:', isError);
+            
             // Формируем HTML с заголовком модели
             let headerHtml = '';
             if (senderName) {
                 headerHtml = `<div class="sender">${senderName}</div>`;
+            }
+            
+            let regenerateButtonHtml = '';
+            if (isError || (!isLoading && message.sender === 'ai')) {
+                // Показываем кнопку для error сообщений и обычных AI сообщений (не LOADING)
+                regenerateButtonHtml = `<button class="regenerate-btn" data-message-id="${message.id}">↻ Перегенерировать</button>`;
             }
             
             messageElement.innerHTML = `
@@ -1256,16 +1565,18 @@ class SingleChat {
                 <div class="message-content">
                     ${processedContent}
                 </div>
-                <button class="regenerate-btn" data-message-id="${message.id}">↻ Перегенерировать</button>
+                ${regenerateButtonHtml}
                 ${timestampHtml}
             `;
             
-            // Добавляем обработчик для кнопки перегенерации
+            // Добавляем обработчик для кнопки перегенерации (если есть)
             const regenerateBtn = messageElement.querySelector('.regenerate-btn');
-            regenerateBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.regenerateMessage(message.id); 
-            });
+            if (regenerateBtn) {
+                regenerateBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.regenerateMessage(message.id); 
+                });
+            }
         } else {
             // Для сообщений пользователя не показываем заголовок
             messageElement.innerHTML = `
@@ -1330,16 +1641,7 @@ class SingleChat {
             const loadingText = loadingMatch[2].trim();
             
             // Создаем специальный контейнер для загрузки
-            return `
-                <div class="ai-loading-container">
-                    <div class="ai-loading-progress-container">
-                        <div class="ai-loading-progress-bar" style="width: ${progressPercent}%;">
-                            <!-- Прогрессбар заполняется слева направо -->
-                        </div>
-                        <div class="ai-loading-text">${this.escapeHtml(loadingText)}</div>
-                    </div>
-                </div>
-            `;
+            return this.createLoadingMessageHTML(progressPercent, loadingText);
         }
 
         // 2. Обработка [THOUGHTS] с поддержкой сворачивания (СВЕРНУТ по умолчанию)
@@ -1395,8 +1697,9 @@ class SingleChat {
             responseContent = this.processBoldText(responseContent);
         }
 
-        // 5. Определяем основной текст ответа
+        // 5. Определяем основной текст ответа (удаляем плейсхолдеры кода)
         let mainResponseContent = responseContent || text.trim();
+        mainResponseContent = mainResponseContent.replace(/\{\{CODE_BLOCK_\d+\}\}/g, '').trim();
 
         // 6. Собираем финальный результат
         result += thoughtsHtml;
@@ -1405,13 +1708,12 @@ class SingleChat {
             result += `<div class="ai-response">${this.escapeHtml(mainResponseContent)}</div>`;
         }
         
-        // Добавляем блоки кода
-        codeBlocks.forEach((codeBlock, index) => {
-            const placeholder = `{{CODE_BLOCK_${index}}}`;
-            if (text.includes(placeholder)) {
+        // Добавляем ВСЕ блоки кода (они уже извлечены из текста)
+        if (codeBlocks.length > 0) {
+            codeBlocks.forEach((codeBlock) => {
                 result += this.createCodeBlockHTML(codeBlock.language, codeBlock.code);
-            }
-        });
+            });
+        }
 
         if (!result.trim()) {
             result = `<div class="text">${this.escapeHtml(text)}</div>`;
@@ -1477,6 +1779,175 @@ class SingleChat {
                 });
             }
         });
+    }
+
+    // Проверка, содержит ли сообщение тег LOADING и извлечение прогресса
+    extractLoadingProgress(text) {
+        const loadingRegex = /\[LOADING:(\d+)]([\s\S]*?)\[\/LOADING\]/;
+        const loadingMatch = loadingRegex.exec(text);
+        if (loadingMatch) {
+            const progressPercent = parseInt(loadingMatch[1]) || 0;
+            const loadingText = loadingMatch[2].trim();
+            return { isLoading: true, progress: progressPercent, text: loadingText };
+        }
+        return { isLoading: false };
+    }
+
+    // Проверка, можно ли отправлять сообщения
+    // Возвращает true, если последнее сообщение от AI и НЕ содержит LOADING
+    canSendMessage() {
+        if (!this.currentChatData || !this.currentChatData.messages || this.currentChatData.messages.length === 0) {
+            return true; // Если нет сообщений, можно отправлять
+        }
+
+        const lastMessage = this.currentChatData.messages[this.currentChatData.messages.length - 1];
+        
+        // Если последнее сообщение от пользователя, нельзя отправлять (ждем ответа AI)
+        if (lastMessage.sender === 'user') {
+            return false;
+        }
+        
+        // Если последнее сообщение от AI
+        if (lastMessage.sender === 'ai') {
+            const loadingInfo = this.extractLoadingProgress(lastMessage.text);
+            // Можно отправлять только если НЕ содержит LOADING
+            return !loadingInfo.isLoading;
+        }
+        
+        // Для error сообщений можно отправлять
+        if (lastMessage.sender === 'error') {
+            return true;
+        }
+        
+        return true;
+    }
+
+    // Обновление состояния кнопки отправки
+    updateSendButtonState() {
+        const sendButton = document.getElementById('send-message-btn');
+        const inputElement = document.getElementById('message-input');
+        
+        if (sendButton) {
+            const canSend = this.canSendMessage();
+            sendButton.disabled = !canSend;
+            console.log('[SEND_BTN] Обновление состояния кнопки. Можно отправлять:', canSend);
+        }
+        
+        if (inputElement) {
+            const canSend = this.canSendMessage();
+            inputElement.disabled = !canSend;
+        }
+    }
+
+    // Проверка, являются ли два сообщения одним и тем же LOADING сообщением
+    // Сравнивает содержимое LOADING сообщений, игнорируя ID
+    isSameLoadingMessage(msg1, msg2) {
+        // Оба сообщения должны быть от ИИ
+        if (msg1.sender !== 'ai' || msg2.sender !== 'ai') {
+            return false;
+        }
+        
+        // Проверяем, являются ли оба сообщения LOADING сообщениями
+        const loadingInfo1 = this.extractLoadingProgress(msg1.text);
+        const loadingInfo2 = this.extractLoadingProgress(msg2.text);
+        
+        if (!loadingInfo1.isLoading || !loadingInfo2.isLoading) {
+            return false;
+        }
+        
+        // Сравниваем текст содержимого LOADING сообщений
+        // Если текст одинаковый, считаем это одним и тем же сообщением
+        return loadingInfo1.text === loadingInfo2.text;
+    }
+
+    // Поиск существующего LOADING сообщения в массиве
+    // Логика: Последнее AI сообщение, которое является LOADING сообщением
+    findMatchingLoadingMessage(messages, targetMessage) {
+        if (!targetMessage || targetMessage.sender !== 'ai') {
+            console.log('[FIND] targetMessage не является AI сообщением');
+            return -1;
+        }
+        
+        const targetLoadingInfo = this.extractLoadingProgress(targetMessage.text);
+        if (!targetLoadingInfo.isLoading) {
+            console.log('[FIND] targetMessage не является LOADING сообщением');
+            return -1;
+        }
+        
+        console.log('[FIND] Ищем последнее AI LOADING сообщение в', messages.length, 'сообщениях');
+        
+        // Ищем ПОСЛЕДНЕЕ сообщение от AI, которое является LOADING сообщением
+        for (let i = messages.length - 1; i >= 0; i--) {
+            const existingMessage = messages[i];
+            if (existingMessage.sender === 'ai') {
+                const existingLoadingInfo = this.extractLoadingProgress(existingMessage.text);
+                if (existingLoadingInfo.isLoading) {
+                    console.log('[FIND] Найдено LOADING сообщение на позиции', i);
+                    return i;
+                }
+            }
+        }
+        
+        console.log('[FIND] LOADING сообщение не найдено');
+        return -1;
+    }
+
+    // Обновление прогресса LOADING сообщения без пересоздания элемента
+    updateLoadingMessageProgress(messageElement, progressPercent, loadingText) {
+        console.log('[LOADING] Попытка плавного обновления:', progressPercent + '%', loadingText);
+        
+        // Находим контейнер содержимого сообщения
+        const contentContainer = messageElement.querySelector('.message-content');
+        if (!contentContainer) {
+            console.log('[LOADING] contentContainer не найден');
+            return false;
+        }
+        
+        // Проверяем, является ли текущее содержимое LOADING сообщением
+        const loadingContainer = contentContainer.querySelector('.ai-loading-container');
+        if (!loadingContainer) {
+            console.log('[LOADING] loadingContainer не найден');
+            return false;
+        }
+        
+        // Находим прогрессбар и текстовый элемент
+        const progressBar = loadingContainer.querySelector('.ai-loading-progress-bar');
+        const textElement = loadingContainer.querySelector('.ai-loading-text');
+        
+        if (progressBar && textElement) {
+            console.log('[LOADING] Элементы найдены! Плавно обновляем до', progressPercent + '%');
+            
+            // ПЛАВНО обновляем ширину прогрессбара (CSS transition сделает это плавно)
+            // ЯВНО устанавливаем transition для гарантии
+            progressBar.style.transition = 'width 0.5s ease';
+            progressBar.style.width = progressPercent + '%';
+            
+            // Обновляем текст если он изменился
+            const escapedText = this.escapeHtml(loadingText);
+            if (textElement.innerHTML !== escapedText) {
+                textElement.innerHTML = escapedText;
+            }
+            
+            console.log('[LOADING] Успешно обновлено!');
+            return true;
+        }
+        
+        console.log('[LOADING] Элементы не найдены');
+        return false;
+    }
+
+    // Создание HTML для LOADING сообщения
+    createLoadingMessageHTML(progressPercent, loadingText) {
+        return `
+            <div class="ai-loading-container">
+                <div class="ai-loading-progress-container">
+                    <div class="ai-loading-progress-bar" style="width: ${progressPercent}%;">
+                        <!-- Прогрессбар заполняется слева направо -->
+                    </div>
+                    <div class="ai-loading-text">${this.escapeHtml(loadingText)}</div>
+                </div>
+            </div>
+        `;
     }
 
     // Функция копирования текста в буфер обмена
@@ -1555,6 +2026,12 @@ class SingleChat {
     async sendMessage() {
         if (!this.currentChatId || !this.currentChatData) return;
 
+        // Проверяем, можно ли отправлять сообщения
+        if (!this.canSendMessage()) {
+            console.log('[SEND] Отправка заблокирована: последнее сообщение от пользователя или содержит LOADING');
+            return;
+        }
+
         const inputElement = document.getElementById('message-input');
         if (!inputElement) return;
 
@@ -1568,6 +2045,12 @@ class SingleChat {
             text: messageText,
             timestamp: new Date().toISOString()
         };
+        
+        // Добавляем прикрепленные файлы, если есть
+        if (this.attachedFiles.length > 0) {
+            userMessage.filename = this.attachedFiles.map(f => f.filename);
+            userMessage.file = this.attachedFiles.map(f => f.content);
+        }
 
         // Добавляем сообщение в UI
         this.addMessageToChat(userMessage);
@@ -1576,12 +2059,13 @@ class SingleChat {
         inputElement.value = '';
         this.autoResizeTextarea.call(inputElement);
         
+        // Очищаем прикрепленные файлы после отправки
+        this.attachedFiles = [];
+        this.updateFileIndicator();
+        
         // Блокируем кнопку отправки и устанавливаем флаг ожидания
         this.isWaitingForAI = true;
-        const sendButton = document.getElementById('send-message-btn');
-        if (sendButton) {
-            sendButton.disabled = true;
-        }
+        this.updateSendButtonState();
 
         // Добавляем сообщение в данные чата И СРАЗУ СОХРАНЯЕМ
         if (!this.currentChatData.messages) {
@@ -1604,11 +2088,8 @@ class SingleChat {
             console.error('Ошибка отправки сообщения ИИ:', error);
             this.isWaitingForAI = false;
             
-            // Разблокируем кнопку отправки
-            const sendButton = document.getElementById('send-message-btn');
-            if (sendButton) {
-                sendButton.disabled = false;
-            }
+            // Обновляем состояние кнопки отправки
+            this.updateSendButtonState();
             
             // Добавляем сообщение об ошибке в чат
             const errorMessage = {
@@ -1863,10 +2344,7 @@ class SingleChat {
             
             // Блокируем интерфейс
             this.isWaitingForAI = true;
-            const sendButton = document.getElementById('send-message-btn');
-            if (sendButton) {
-                sendButton.disabled = true;
-            }
+            this.updateSendButtonState();
             
             // Вызываем sendToAI для генерации нового ответа
             if (messageIndex > 0 && this.currentChatData.messages.length > 0) {
@@ -1888,24 +2366,17 @@ class SingleChat {
                     
                 } else {
                     this.isWaitingForAI = false;
-                    if (sendButton) {
-                        sendButton.disabled = false;
-                    }
+                    this.updateSendButtonState();
                     this.showNotification('Невозможно перегенерировать: не найдено исходное сообщение', 'error');
                 }
             } else {
                 this.isWaitingForAI = false;
-                if (sendButton) {
-                    sendButton.disabled = false;
-                }
+                this.updateSendButtonState();
             }
         } catch (error) {
             console.error('Ошибка в regenerateLastMessage:', error);
             this.isWaitingForAI = false;
-            const sendButton = document.getElementById('send-message-btn');
-            if (sendButton) {
-                sendButton.disabled = false;
-            }
+            this.updateSendButtonState();
             throw error;
         }
     }
@@ -1959,10 +2430,7 @@ class SingleChat {
                 
                 // Блокируем интерфейс
                 this.isWaitingForAI = true;
-                const sendButton = document.getElementById('send-message-btn');
-                if (sendButton) {
-                    sendButton.disabled = true;
-                }
+                this.updateSendButtonState();
                 
                 // Получаем последнее сообщение пользователя из истории
                 if (history.length > 0) {
@@ -1984,15 +2452,11 @@ class SingleChat {
                         
                     } else {
                         this.isWaitingForAI = false;
-                        if (sendButton) {
-                            sendButton.disabled = false;
-                        }
+                        this.updateSendButtonState();
                     }
                 } else {
                     this.isWaitingForAI = false;
-                    if (sendButton) {
-                        sendButton.disabled = false;
-                    }
+                    this.updateSendButtonState();
                 }
                 
                 this.showNotification('Создан новый чат для перегенерации', 'success');
@@ -2003,10 +2467,7 @@ class SingleChat {
         } catch (error) {
             console.error('Ошибка в createChatFromMessage:', error);
             this.isWaitingForAI = false;
-            const sendButton = document.getElementById('send-message-btn');
-            if (sendButton) {
-                sendButton.disabled = false;
-            }
+            this.updateSendButtonState();
             throw error;
         }
     }

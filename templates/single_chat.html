@@ -52,9 +52,34 @@
                         rows="1"
                         disabled
                     ></textarea>
-                    <button id="send-message-btn" class="btn primary-btn small-btn" disabled>
-                        <span class="btn-text">Отправить</span>
+                    <button id="send-message-btn" class="send-btn-circular" disabled>
+                        <span class="send-btn-icon">➤</span>
+                        <span class="send-btn-text">Отправить</span>
                     </button>
+                    <!-- Кнопка прикрепления файлов -->
+                    <div class="attach-btn-container">
+                        <button id="attach-file-btn" class="attach-btn-circular" type="button">
+                            <span class="attach-btn-icon">+</span>
+                            <!-- Индикатор прикрепленных файлов -->
+                            <div id="file-indicator" class="file-indicator hidden" title="">
+                                <span id="file-count" class="file-count">0</span>
+                            </div>
+                        </button>
+                        <!-- Контекстное меню для выбора типа файла -->
+                        <div id="attach-menu" class="attach-menu hidden">
+                            <div class="attach-menu-item" data-type="image">
+                                <span class="attach-menu-icon">🖼️</span>
+                                <span class="attach-menu-text">Картинка</span>
+                            </div>
+                            <div class="attach-menu-item" data-type="text">
+                                <span class="attach-menu-icon">📄</span>
+                                <span class="attach-menu-text">Текстовый файл</span>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Скрытый input для выбора файлов -->
+                    <input type="file" id="file-input-image" accept="image/*" style="display: none;">
+                    <input type="file" id="file-input-text" accept=".txt" style="display: none;">
                 </div>
             </div>
         </div>

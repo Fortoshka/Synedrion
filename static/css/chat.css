@@ -157,11 +157,6 @@ body{
     border-bottom-right-radius: 5px;
 }
 
-[data-theme="light"] .message.user {
-    color: #51a615;
-    border: 1px solid #51a615;
-}
-
 .message.ai {
     position: relative;
     align-self: flex-start;
@@ -172,12 +167,6 @@ body{
 
 .message {
     min-width: 10%;
-}
-
-[data-theme="light"] .message.ai{
-    background-color: black;
-    color: white;
-    border: 1px solid white;
 }
 
 .message .sender {
@@ -192,13 +181,14 @@ body{
 
 /* Область ввода */
 .chat-input-area {
-    padding: 20px;
+    padding: 21px;
     background: rgba(255, 255, 255, 0.1);
     backdrop-filter: blur(10px);
     border-top: 1px solid var(--card-border);
 }
 
 .input-container {
+    position: relative;
     display: flex;
     gap: 10px;
     align-items: flex-end;
@@ -207,7 +197,8 @@ body{
 #message-input {
     flex: 1;
     padding: 15px;
-    border-radius: 18px;
+    padding-right: 105px; /* Добавляем место для кнопки прикрепления и кнопки отправки */
+    border-radius: 26px;
     border: 1px solid var(--card-border);
     background: rgba(255, 255, 255, 0.15);
     color: var(--text-color);
@@ -215,7 +206,7 @@ body{
     font-family: inherit;
     font-weight: inherit;
     resize: none;
-    min-height: 50px;
+    min-height: 51px;
     max-height: 150px;
 }
 
@@ -229,14 +220,262 @@ body{
     color: var(--text-secondary);
 }
 
-#send-message-btn {
-    min-width: auto;
-    padding: 15px 25px;
-    height: 50px;
+/* Круглая кнопка отправки */
+.send-btn-circular {
+    position: absolute;
+    right: 8px;
+    bottom: 7px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+    white-space: nowrap;
+    padding: 0;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
 }
 
-/* Анимации */
-@keyframes fadeIn {
+.send-btn-circular:hover:not(:disabled) {
+    width: 140px;
+    border-radius: 30px;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.6), 0 0 0 2px rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.send-btn-circular:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);
+}
+
+.send-btn-circular:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+.send-btn-icon {
+    font-size: 18px;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transform: rotate(0deg);
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
+}
+
+.send-btn-text {
+    font-size: 14px;
+    font-weight: 600;
+    color: white;
+    opacity: 0;
+    max-width: 0;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    margin-left: 0;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    letter-spacing: 0.3px;
+}
+
+.send-btn-circular:hover:not(:disabled) .send-btn-text {
+    opacity: 1;
+    max-width: 80px;
+    margin-left: 5px;
+}
+
+.send-btn-circular:hover:not(:disabled) .send-btn-icon {
+    margin-left: 5px;
+    transform: rotate(-5deg) scale(1.1);
+}
+
+/* Кнопка прикрепления файлов */
+.attach-btn-container {
+    position: absolute;
+    right: 56px;
+    bottom: 7px;
+    transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+}
+
+/* Сдвигаем кнопку прикрепления влево при наведении на кнопку отправки */
+.send-btn-circular:hover:not(:disabled) ~ .attach-btn-container {
+    right: 156px;
+}
+
+.attach-btn-circular {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid var(--card-border);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    padding: 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    position: relative;
+}
+
+.attach-btn-circular:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.attach-btn-circular:active {
+    transform: scale(0.95);
+}
+
+.attach-btn-icon {
+    font-size: 24px;
+    color: var(--text-color);
+    font-weight: 300;
+    line-height: 1;
+}
+
+/* Контекстное меню прикрепления */
+.attach-menu {
+    position: absolute;
+    bottom: 50px;
+    right: 0;
+    background: rgba(181, 181, 181, 0.5);
+    backdrop-filter: blur(15px);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+    min-width: 180px;
+    z-index: 100;
+    animation: slideUpFadeIn 0.2s ease;
+}
+
+.attach-menu.hidden {
+    display: none;
+}
+
+.attach-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+    color: var(--text-color);
+}
+
+.attach-menu-item:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.attach-menu-item:active {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.attach-menu-icon {
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+}
+
+.attach-menu-text {
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+/* Индикатор прикрепленных файлов */
+.file-indicator {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    width: 24px;
+    height: 24px;
+    background: var(--primary-color);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    z-index: 101;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.5);
+}
+
+.file-indicator.hidden {
+    display: none;
+}
+
+.file-indicator:hover {
+    transform: scale(1.1);
+    background: var(--primary-hover);
+}
+
+.file-count {
+    color: white;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+/* Tooltip для списка файлов */
+.file-indicator::after {
+    content: attr(title);
+    position: absolute;
+    bottom: calc(100% + 12px);
+    right: -50%;
+    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    font-size: 12px;
+    border-radius: 6px;
+    white-space: pre-line;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    max-width: 200px;
+    text-align: left;
+    transform: translateX(50%);
+    z-index: 102;
+}
+
+.file-indicator:hover::after {
+    opacity: 1;
+}
+
+/* Стрелка tooltip */
+.file-indicator::before {
+    content: '';
+    position: absolute;
+    bottom: calc(100% + 4px);
+    right: 0;
+    width: 0;
+    height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 6px solid rgba(0, 0, 0, 0.9);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    z-index: 102;
+}
+
+.file-indicator:hover::before {
+    opacity: 1;
+}
+
+@keyframes slideUpFadeIn {
     from {
         opacity: 0;
         transform: translateY(10px);
@@ -289,12 +528,45 @@ body{
     
     #message-input {
         padding: 12px;
+        padding-right: 95px;
         font-size: 0.9rem;
     }
     
     .message {
         padding: 12px;
         font-size: 0.9rem;
+    }
+    
+    .send-btn-circular {
+        width: 36px;
+        height: 36px;
+        right: 6px;
+        bottom: 6px;
+    }
+    
+    .send-btn-icon {
+        font-size: 16px;
+        min-width: 36px;
+    }
+    
+    .send-btn-circular:hover:not(:disabled) {
+        width: 110px;
+        background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+        box-shadow: 0 6px 20px rgba(37, 99, 235, 0.6), 0 0 0 2px rgba(255, 255, 255, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+    
+    .attach-btn-container {
+        right: 50px;
+    }
+    
+    .attach-btn-circular {
+        width: 36px;
+        height: 36px;
+    }
+    
+    .attach-btn-icon {
+        font-size: 20px;
     }
 }
 
@@ -630,18 +902,9 @@ body{
     background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
 }
 
-[data-theme="light"] .danger-btn {
-    background: linear-gradient(135deg, #51a615 0%, #164d11 100%);
-    color: black;
-}
-
 .danger-btn:hover {
     transform: translateY(-2px) scale(1.02);
     box-shadow: 0 8px 25px rgba(239, 68, 68, 0.4);
-}
-
-[data-theme="light"] .danger-btn:hover {
-    box-shadow: 0 8px 25px rgba(23, 128, 30, 0.3);
 }
 
 .danger-btn:active {
@@ -879,6 +1142,14 @@ body{
     align-items: center;
 }
 
+[data-theme="light"] .ai-code-block {
+    background: #3f365c;
+}
+
+[data-theme="light"] .ai-code-header {
+    background: #416571;
+}
+
 .ai-code-language {
     font-weight: 600;
     color: #569cd6;
@@ -1000,12 +1271,8 @@ body{
     font-weight: 700;
     font-size: 1.2rem;
     margin-bottom: 8px;
-    color: var(--secondary-color);
+    color: var(--text-color);
     opacity: 0.9;
-}
-
-[data-theme="light"] .message.ai .sender {
-    color: white;
 }
 
 /* Адаптивность */
@@ -1141,7 +1408,7 @@ body{
 
 .ai-thoughts-label-main {
     font-weight: 600;
-    color: var(--secondary-color);
+    color: var(--text-secondary);
 }
 
 .ai-thoughts-toggle {
@@ -1361,7 +1628,7 @@ body{
     height: 100%;
     background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
     border-radius: 15px;
-    transition: width 0.3s ease;
+    transition: width 0.5s ease !important; /* Плавное изменение только ширины - ПРИНУДИТЕЛЬНО */
     position: relative;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
 }
@@ -1379,13 +1646,8 @@ body{
     text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
     padding: 0 20px;
     text-align: center;
-    /* Анимация переливания текста */
-    background: linear-gradient(90deg, rgba(255,255,255,0.9), rgba(255,255,255,1), rgba(255,255,255,0.9));
-    background-size: 200% 200%;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    animation: loadingTextShine 2s ease-in-out infinite;
+    /* Анимация переливания текста ОТКЛЮЧЕНА */
+    animation: none; /* Отключено для мгновенного обновления */
     z-index: 2;
     white-space: nowrap;
     overflow: hidden;
@@ -1488,4 +1750,28 @@ body{
         width: 100%;
         min-width: auto;
     }
+}
+
+/* КРИТИЧНО: Отключаем анимацию появления для LOADING сообщений */
+.message.ai:has(.ai-loading-container) {
+    animation: none !important;
+}
+
+/* Отключаем анимации для контейнеров LOADING сообщений */
+.ai-loading-container,
+.ai-loading-progress-container {
+    animation: none !important;
+    transition: none !important;
+}
+
+/* Отключаем анимации для текста */
+.ai-loading-text {
+    animation: none !important;
+    transition: none !important;
+}
+
+/* Для прогрессбара ОСТАВЛЯЕМ transition для плавного движения */
+.ai-loading-progress-bar {
+    animation: none !important;
+    /* НЕ отключаем transition - он нужен для плавного движения! */
 }

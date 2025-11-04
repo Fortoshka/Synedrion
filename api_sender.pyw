@@ -100,6 +100,8 @@ def save_history(response, state = None, progress = 0):
             text = f"[LOADING:10]Создание запроса...[/LOADING]"
         elif state == 'generating':
             text = f"[LOADING:{int(20 + progress)}]Генерация ответа...[/LOADING]"
+        elif state == 'end':
+            text = f"[LOADING:100]Форматирование...[/LOADING]"
     elif reasoning:
         text = f"[THOUGHTS]\n{reasoning}\n[/THOUGHTS]\n{answer}" 
         logging.info("История успешно сохранена.")
@@ -207,6 +209,8 @@ def main():
         history = load_history()
         answer = send_message_api(history)
         if answer:
+            save_history({}, "end")
+            time.sleep(1)
             if answer['choices'][0]['message']['content'] == "" : answer['choices'][0]['message']['content'] += "[RESPONSE]\n*треск сверчков*\n[/RESPONSE]"
             save_history(answer)
             logging.info("Ответ сохранён в истории.")
