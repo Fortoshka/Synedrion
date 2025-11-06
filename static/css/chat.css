@@ -1264,11 +1264,11 @@ body{
 }
 
 [data-theme="light"] .ai-code-block {
-    background: #3f365c;
+    background: #3c3650;
 }
 
 [data-theme="light"] .ai-code-header {
-    background: #416571;
+    background: #3c4e54;
 }
 
 .ai-code-language {
@@ -1895,12 +1895,40 @@ body{
 
 /* Отключаем анимации для текста */
 .ai-loading-text {
-    animation: none !important;
-    transition: none !important;
+animation: none !important;
+transition: none !important;
 }
 
 /* Для прогрессбара ОСТАВЛЯЕМ transition для плавного движения */
 .ai-loading-progress-bar {
-    animation: none !important;
-    /* НЕ отключаем transition - он нужен для плавного движения! */
+animation: none !important;
+/* НЕ отключаем transition - он нужен для плавного движения! */
+}
+
+/* Кнопки для блоков кода */
+.ai-code-buttons {
+display: flex;
+gap: 6px;
+align-items: center;
+}
+
+.ai-code-download-btn {
+background: rgba(255, 255, 255, 0.1);
+border: 1px solid rgba(255, 255, 255, 0.2);
+color: #cccccc;
+padding: 4px 8px;
+border-radius: 4px;
+font-size: 0.8rem;
+cursor: pointer;
+transition: all 0.2s ease;
+}
+
+.ai-code-download-btn:hover {
+background: rgba(255, 255, 255, 0.2);
+}
+
+.ai-code-download-btn.downloaded {
+background: #2196f3;
+border-color: #2196f3;
+color: white;
 }

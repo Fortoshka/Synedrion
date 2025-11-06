@@ -36,6 +36,10 @@ CONFIG_DIR = 'config'
 if not os.path.exists(CONFIG_DIR):
     os.makedirs(CONFIG_DIR)
 
+DOWNLOADS_DIR = 'downloads'
+if not os.path.exists(DOWNLOADS_DIR):
+    os.makedirs(DOWNLOADS_DIR)
+
 def get_app_version():
     """Получение версии приложения из файла VERSION.txt"""
     version_file_path = os.path.join(os.path.dirname(__file__), 'VERSION.txt')
@@ -459,6 +463,80 @@ def process_file():
             pass
         
         return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/save_code_file', methods=['POST'])
+def save_code_file():
+    """Сохранение кода в файл на диск с выбором папки"""
+    try:
+        data = request.json
+        code_content = data.get('code', '')
+        language = data.get('language', 'txt')  # Теперь это может быть полное имя файла
+        
+        if not code_content:
+            return jsonify({'success': False, 'error': 'Нет содержимого для сохранения'}), 400
+        
+        # Определяем имя файла и расширение
+        if '.' in language:
+            # Если language содержит точку, это полное имя файла (например: test.py)
+            filename = language
+            extension = language.split('.')[-1]
+        else:
+            # Если только расширение, генерируем имя
+            timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+            random_str = os.urandom(3).hex()
+            filename = f'code_{timestamp}_{random_str}.{language}'
+            extension = language
+        
+        # Получаем ссылку на окно webview
+        try:
+            window = webview.windows[0]
+            
+            # Открываем диалог сохранения файла
+            result = window.create_file_dialog(
+                dialog_type=webview.SAVE_DIALOG,
+                save_filename=filename,
+                file_types=(f'{extension.upper()} Files (*.{extension})', 'All files (*.*)')
+            )
+            
+            if result and len(result) > 0:
+                filepath = result[0] if isinstance(result, tuple) else result
+                
+                # Сохраняем файл в выбранную пользователем директорию
+                with open(filepath, 'w', encoding='utf-8') as f:
+                    f.write(code_content)
+                
+                return jsonify({
+                    'success': True,
+                    'filename': os.path.basename(filepath),
+                    'filepath': filepath,
+                    'message': f'Файл сохранен: {filepath}'
+                })
+            else:
+                # Пользователь отменил сохранение
+                return jsonify({
+                    'success': False,
+                    'cancelled': True,
+                    'message': 'Сохранение отменено'
+                })
+                
+        except (IndexError, AttributeError):
+            # Если webview недоступен, сохраняем в папку downloads по умолчанию
+            filepath = os.path.join(DOWNLOADS_DIR, filename)
+            
+            with open(filepath, 'w', encoding='utf-8') as f:
+                f.write(code_content)
+            
+            absolute_path = os.path.abspath(filepath)
+            
+            return jsonify({
+                'success': True,
+                'filename': filename,
+                'filepath': absolute_path,
+                'message': f'Файл сохранен: {absolute_path}'
+            })
         
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500

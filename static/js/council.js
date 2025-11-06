@@ -1167,16 +1167,22 @@ class CouncilChat {
             `;
         });
         
-        // Создаем уникальный ID для кнопки копирования
+        // Создаем уникальные ID для кнопок
         const copyButtonId = `copy-btn-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const downloadButtonId = `download-btn-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         
         return `
             <div class="ai-code-block">
                 <div class="ai-code-header">
                     <div class="ai-code-language">${this.escapeHtml(language)}</div>
-                    <button class="ai-code-copy-btn" id="${copyButtonId}" data-code="${this.escapeHtmlForCode(codeContent).replace(/"/g, '&quot;')}">
-                        Копировать
-                    </button>
+                    <div class="ai-code-buttons">
+                        <button class="ai-code-download-btn" id="${downloadButtonId}" data-code="${this.escapeHtmlForCode(codeContent).replace(/"/g, '&quot;')}" data-language="${this.escapeHtml(language)}">
+                            📥 
+                        </button>
+                        <button class="ai-code-copy-btn" id="${copyButtonId}" data-code="${this.escapeHtmlForCode(codeContent).replace(/"/g, '&quot;')}">
+                            📋 
+                        </button>
+                    </div>
                 </div>
                 <div class="ai-code-content">
                     <div class="ai-code-lines">
@@ -1513,6 +1519,7 @@ class CouncilChat {
         
         // Инициализируем обработчики для кнопок копирования кода (если есть)
         this.initCodeCopyButtons();
+        this.initCodeDownloadButtons();
     }
 
     // Отображение чата без анимации (для обновлений)
@@ -1694,7 +1701,7 @@ class CouncilChat {
                 attachedFilesHtml = `
                     <div class="message-attached-files">
                         <span class="attached-files-icon">📎</span>
-                        <span class="attached-files-text">${fileCount} ${fileWord} прикреплено</span>
+                        <span class="attached-files-text">+${fileCount} ${fileWord}</span>
                     </div>
                 `;
             }
@@ -1723,6 +1730,7 @@ class CouncilChat {
         
         // Инициализируем обработчики для кнопок копирования кода
         this.initCodeCopyButtons();
+        this.initCodeDownloadButtons();
         
         // Инициализируем обработчики для сворачивания мыслей (если есть)
         this.initThoughtsToggles();
@@ -1876,7 +1884,7 @@ class CouncilChat {
                 attachedFilesHtml = `
                     <div class="message-attached-files">
                         <span class="attached-files-icon">📎</span>
-                        <span class="attached-files-text">${fileCount} ${fileWord} прикреплено</span>
+                        <span class="attached-files-text">+${fileCount} ${fileWord}</span>
                     </div>
                 `;
             }
@@ -1905,6 +1913,7 @@ class CouncilChat {
         
         // Инициализируем обработчики для кнопок копирования кода
         this.initCodeCopyButtons();
+        this.initCodeDownloadButtons();
         
         // Инициализируем обработчики для сворачивания мыслей (если есть)
         this.initThoughtsToggles();
@@ -1998,55 +2007,58 @@ class CouncilChat {
             text = text.replace(thoughtsMatch[0], '');
         }
 
-        // 3. Извлечение и обработка [CODE:language]...[/CODE] блоков
-        const codeBlocks = [];
+        // 3. Обрабатываем текст построчно, сохраняя порядок CODE блоков
+        // Разбиваем текст на части: обычный текст и CODE блоки
+        const parts = [];
         const codeRegex = /\[CODE:\s*([^\]]+?)\]([\s\S]*?)\[\/CODE\]/g;
-        let tempText = text;
-
+        let lastIndex = 0;
         let match;
+
         while ((match = codeRegex.exec(text)) !== null) {
+            // Добавляем текст до CODE блока
+            if (match.index > lastIndex) {
+                const textBefore = text.substring(lastIndex, match.index).trim();
+                if (textBefore) {
+                    parts.push({ type: 'text', content: textBefore });
+                }
+            }
+            
+            // Добавляем CODE блок
             const language = match[1].trim();
             let codeContent = match[2];
             codeContent = codeContent.replace(/^\s*\n/, '').replace(/\n\s*$/, '\n');
+            parts.push({ type: 'code', language: language, content: codeContent });
             
-            codeBlocks.push({
-                language: language,
-                code: codeContent
-            });
-            
-            tempText = tempText.replace(match[0], `{{CODE_BLOCK_${codeBlocks.length - 1}}}`);
+            lastIndex = match.index + match[0].length;
         }
-        text = tempText;
-
-        // 4. Извлечение и обработка [RESPONSE] с обработкой **
-        let responseContent = '';
-        const responseRegex = /\[RESPONSE\]([\s\S]*?)\[\/RESPONSE\]/;
-        const responseMatch = responseRegex.exec(text);
-        if (responseMatch) {
-            responseContent = responseMatch[1].trim();
-            text = text.replace(responseMatch[0], '');
-            
-            // Обрабатываем ** в содержимом [RESPONSE]
-            responseContent = this.processBoldText(responseContent);
+        
+        // Добавляем оставшийся текст после последнего CODE блока
+        if (lastIndex < text.length) {
+            const textAfter = text.substring(lastIndex).trim();
+            if (textAfter) {
+                parts.push({ type: 'text', content: textAfter });
+            }
+        }
+        
+        // Если не было CODE блоков, добавляем весь текст
+        if (parts.length === 0 && text.trim()) {
+            parts.push({ type: 'text', content: text.trim() });
         }
 
-        // 5. Определяем основной текст ответа (удаляем плейсхолдеры кода)
-        let mainResponseContent = responseContent || text.trim();
-        mainResponseContent = mainResponseContent.replace(/\{\{CODE_BLOCK_\d+\}\}/g, '').trim();
-
-        // 6. Собираем финальный результат
+        // 4. Собираем финальный результат
         result += thoughtsHtml;
         
-        if (mainResponseContent) {
-            result += `<div class="ai-response">${this.escapeHtml(mainResponseContent)}</div>`;
-        }
-        
-        // Добавляем ВСЕ блоки кода (они уже извлечены из текста)
-        if (codeBlocks.length > 0) {
-            codeBlocks.forEach((codeBlock) => {
-                result += this.createCodeBlockHTML(codeBlock.language, codeBlock.code);
-            });
-        }
+        // Обрабатываем каждую часть в правильном порядке
+        parts.forEach(part => {
+            if (part.type === 'text') {
+                // Обрабатываем ** для жирного текста
+                const processedText = this.processBoldText(part.content);
+                result += `<div class="ai-response">${processedText}</div>`;
+            } else if (part.type === 'code') {
+                // Добавляем блок кода
+                result += this.createCodeBlockHTML(part.language, part.content);
+            }
+        });
 
         if (!result.trim()) {
             result = `<div class="text">${this.escapeHtml(text)}</div>`;
@@ -2056,9 +2068,12 @@ class CouncilChat {
     }
 
     processBoldText(text) {
-        // Регулярное выражение для поиска текста между **
+        // Сначала экранируем HTML
+        let escaped = this.escapeHtml(text);
+        
+        // Затем заменяем ** на теги <strong>
         // Используем ленивый квантификатор *? чтобы найти ближайшую пару **
-        return text.replace(/\*\*(.*?)\*\*/g, '<strong class=ai-bold-text>$1</strong>');
+        return escaped.replace(/\*\*(.*?)\*\*/g, '<strong class="ai-bold-text">$1</strong>');
     }
 
     initThoughtsToggles() {
@@ -2351,6 +2366,71 @@ class CouncilChat {
                             button.classList.remove('copied');
                         }, 2000);
                     }
+                }
+            });
+        });
+    }
+
+    // Функция скачивания кода в файл (через backend для webview)
+    initCodeDownloadButtons() {
+        // Находим все кнопки скачивания в чате, которые еще не инициализированы
+        const downloadButtons = document.querySelectorAll('.ai-code-download-btn:not([data-initialized])');
+        
+        downloadButtons.forEach(button => {
+            // Помечаем кнопку как инициализированную
+            button.setAttribute('data-initialized', 'true');
+            
+            button.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                
+                const codeContent = button.getAttribute('data-code');
+                const language = button.getAttribute('data-language');
+                const originalText = button.textContent;
+                
+                try {
+                    // Отправляем запрос на backend для сохранения файла
+                    const response = await fetch('/api/save_code_file', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            code: codeContent,
+                            language: language
+                        })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        // Показываем уведомление об успешном сохранении
+                        button.textContent = '✓ Сохранено!';
+                        button.classList.add('downloaded');
+                        
+                        // Показываем уведомление с путем к файлу
+                        this.showNotification(result.message, 'success');
+                        
+                        // Возвращаем оригинальный текст через 2 секунды
+                        setTimeout(() => {
+                            button.textContent = originalText;
+                            button.classList.remove('downloaded');
+                        }, 2000);
+                    } else if (result.cancelled) {
+                        // Пользователь отменил сохранение
+                        console.log('Сохранение отменено пользователем');
+                        // Просто возвращаем исходный вид кнопки без уведомления
+                    } else {
+                        throw new Error(result.error || 'Ошибка сохранения файла');
+                    }
+                    
+                } catch (err) {
+                    console.error('Ошибка сохранения файла:', err);
+                    button.textContent = '✗ Ошибка!';
+                    this.showNotification('Ошибка сохранения файла: ' + err.message, 'error');
+                    
+                    setTimeout(() => {
+                        button.textContent = originalText;
+                    }, 2000);
                 }
             });
         });

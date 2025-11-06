@@ -69,7 +69,7 @@
 /* Стили для сообщений от разных моделей в консилиуме */
 .message.ai.council {
     position: relative;
-    border-left: 3px solid transparent;
+    border-left: 6px solid transparent;
     padding-left: 15px;
 }
 
