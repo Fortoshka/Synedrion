@@ -1,4 +1,4 @@
-class SingleChat {
+class CouncilChat {
     constructor() {
         this.currentChatId = null;
         this.currentChatData = null;
@@ -475,7 +475,7 @@ class SingleChat {
         const chatId = chatIdInput.value;
         
         try {
-            const response = await fetch(`/api/chats/${chatId}`, {
+            const response = await fetch(`/api/group_chats/${chatId}`, {
                 method: 'DELETE',
                 headers: {
                     'Content-Type': 'application/json',
@@ -505,6 +505,43 @@ class SingleChat {
             console.error('Ошибка подключения:', error);
             this.showNotification('Ошибка подключения к серверу', 'error');
         }
+    }
+
+    // Обновление бейджа моделей в шапке
+    updateModelsBadge() {
+        const badgeContainer = document.getElementById('council-models-display');
+        if (!badgeContainer) return;
+        
+        badgeContainer.innerHTML = '';
+        
+        if (this.currentChatData && this.currentChatData.models) {
+            this.currentChatData.models.forEach(modelUrl => {
+                const badge = document.createElement('span');
+                badge.className = 'model-badge';
+                const shortName = this.getModelShortName(modelUrl);
+                badge.textContent = shortName;
+                badgeContainer.appendChild(badge);
+            });
+        }
+    }
+
+    // Получение короткого имени модели
+    getModelShortName(modelUrl) {
+        const parts = modelUrl.split('/');
+        const modelPart = parts[parts.length - 1];
+        return modelPart.replace(':free', '').substring(0, 15);
+    }
+
+    // Получение отображаемого имени модели
+    getModelDisplayName(modelUrl) {
+        return this.getModelShortName(modelUrl);
+    }
+
+    // Получение индекса модели в списке консилиума
+    getModelIndex(modelUrl) {
+        if (!this.currentChatData || !this.currentChatData.models) return 0;
+        const index = this.currentChatData.models.indexOf(modelUrl);
+        return index >= 0 ? index : 0;
     }
 
     // Показ уведомлений
@@ -538,17 +575,17 @@ class SingleChat {
         }, 3000);
     }
 
-    // Открытие модального окна создания чата
+    // Открытие модального окна создания консилиума
     async openNewChatModal() {
         const modal = document.getElementById('new-chat-modal');
-        const modelSelect = document.getElementById('chat-model');
+        const modelsSelector = document.getElementById('models-selector');
         const titleInput = document.getElementById('chat-title');
         const systemPromptInput = document.getElementById('system-prompt');
         
         // Очищаем поля
         titleInput.value = '';
         systemPromptInput.value = '';
-        modelSelect.innerHTML = '<option value="">Загрузка моделей...</option>';
+        modelsSelector.innerHTML = '<div class="loading-placeholder">Загрузка моделей...</div>';
         
         // Загружаем список моделей
         try {
@@ -558,26 +595,47 @@ class SingleChat {
                 const models = settings.models || [];
                 
                 if (models.length > 0) {
-                    modelSelect.innerHTML = '';
-                    models.forEach(model => {
-                        const option = document.createElement('option');
-                        option.value = model.url;
-                        option.textContent = model.name;
-                        modelSelect.appendChild(option);
+                    modelsSelector.innerHTML = '';
+                    models.forEach((model, index) => {
+                        const modelItem = document.createElement('div');
+                        modelItem.className = 'model-checkbox-item';
+                        modelItem.innerHTML = `
+                            <input type="checkbox" id="model-${index}" value="${model.url}" data-name="${model.name}">
+                            <label for="model-${index}">${model.name}</label>
+                        `;
+                        
+                        const checkbox = modelItem.querySelector('input[type="checkbox"]');
+                        checkbox.addEventListener('change', () => {
+                            if (checkbox.checked) {
+                                modelItem.classList.add('selected');
+                            } else {
+                                modelItem.classList.remove('selected');
+                            }
+                            this.updateModelsCountIndicator();
+                        });
+                        
+                        modelsSelector.appendChild(modelItem);
                     });
+                    
+                    // Добавляем индикатор количества
+                    const countIndicator = document.createElement('div');
+                    countIndicator.className = 'models-count-indicator';
+                    countIndicator.id = 'models-count-create';
+                    countIndicator.textContent = 'Выберите минимум 2 модели';
+                    modelsSelector.appendChild(countIndicator);
                 } else {
-                    modelSelect.innerHTML = '<option value="">Нет доступных моделей</option>';
+                    modelsSelector.innerHTML = '<div class="models-selector-empty">Нет доступных моделей</div>';
                 }
             } else {
-                modelSelect.innerHTML = '<option value="">Ошибка загрузки моделей</option>';
+                modelsSelector.innerHTML = '<div class="models-selector-empty">Ошибка загрузки моделей</div>';
             }
         } catch (error) {
             console.error('Ошибка загрузки моделей:', error);
-            modelSelect.innerHTML = '<option value="">Ошибка подключения</option>';
+            modelsSelector.innerHTML = '<div class="models-selector-empty">Ошибка подключения</div>';
         }
         
-        // Показываем модальное окно с правильным display
-        modal.style.display = 'flex'; // Используем flex для центрирования
+        // Показываем модальное окно
+        modal.style.display = 'flex';
         
         // Инициализируем обработчики для ползунка reasoning length
         this.initReasoningLenControls(modal);
@@ -589,6 +647,26 @@ class SingleChat {
         
         // Предотвращаем скролл фона
         document.body.style.overflow = 'hidden';
+    }
+
+    updateModelsCountIndicator() {
+        const indicator = document.getElementById('models-count-create') || document.getElementById('models-count-settings');
+        if (!indicator) return;
+        
+        const selector = indicator.closest('.models-selector');
+        const checkedBoxes = selector.querySelectorAll('input[type="checkbox"]:checked');
+        const count = checkedBoxes.length;
+        
+        if (count === 0) {
+            indicator.textContent = 'Выберите минимум 2 модели';
+            indicator.className = 'models-count-indicator';
+        } else if (count === 1) {
+            indicator.textContent = 'Выбрана 1 модель (нужно минимум 2)';
+            indicator.className = 'models-count-indicator error';
+        } else {
+            indicator.textContent = `Выбрано моделей: ${count}`;
+            indicator.className = 'models-count-indicator success';
+        }
     }
 
     showInputErrorModal(message) {
@@ -630,46 +708,47 @@ class SingleChat {
         modal.style.display = 'block';
     }
 
-    // Создание чата из модального окна (обновленная версия)
+    // Создание консилиума из модального окна
     async createChatFromModal() {
         const titleInput = document.getElementById('chat-title');
-        const modelSelect = document.getElementById('chat-model');
+        const modelsSelector = document.getElementById('models-selector');
         const systemPromptInput = document.getElementById('system-prompt');
         const reasoningLenSlider = document.getElementById('create-reasoning-len-slider');
         
         let title = titleInput.value.trim();
-        const modelUrl = modelSelect.value;
         const systemPrompt = systemPromptInput.value.trim();
         const reasoningLen = parseInt(reasoningLenSlider.value) || 1000;
         
-        // Ограничиваем длину названия чата до 50 символов
+        // Получаем выбранные модели
+        const selectedModels = Array.from(modelsSelector.querySelectorAll('input[type="checkbox"]:checked'))
+            .map(cb => cb.value);
+        
+        // Ограничиваем длину названия до 50 символов
         if (title.length > 50) {
             title = title.substring(0, 50);
         }
         
         if (!title) {
-            // Заменяем alert на модальное окно
-            this.showInputErrorModal('Пожалуйста, введите название чата');
+            this.showInputErrorModal('Пожалуйста, введите название консилиума');
             return;
         }
         
-        if (!modelUrl) {
-            // Заменяем alert на модальное окно
-            this.showInputErrorModal('Пожалуйста, выберите модель ИИ');
+        if (selectedModels.length < 2) {
+            this.showInputErrorModal('Выберите минимум 2 модели для создания консилиума');
             return;
         }
         
         try {
-            // Создаем новый чат с выбранными параметрами
-            const response = await fetch('/api/chats', {
+            // Создаем новый консилиум с выбранными параметрами
+            const response = await fetch('/api/group_chats', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
                     title: title,
-                    model: modelUrl,
-                    system_prompt: systemPrompt || undefined, // Не добавляем, если пустой
+                    models: selectedModels,
+                    system_prompt: systemPrompt || undefined,
                     reasoning_len: reasoningLen
                 })
             });
@@ -696,23 +775,23 @@ class SingleChat {
         }
     }
 
-    // Открытие модального окна настроек чата (обновленная версия)
+    // Открытие модального окна настроек консилиума
     async openChatSettings(chatId) {
         const modal = document.getElementById('chat-settings-modal');
         const chatIdInput = document.getElementById('settings-chat-id');
         const titleInput = document.getElementById('settings-chat-title');
-        const modelSelect = document.getElementById('settings-chat-model');
+        const modelsSelector = document.getElementById('settings-models-selector');
         const systemPromptInput = document.getElementById('settings-system-prompt');
         const reasoningLenSlider = document.getElementById('settings-reasoning-len-slider');
         const reasoningLenValue = document.getElementById('settings-reasoning-len-value');
         
-        // Загружаем данные чата
+        // Загружаем данные консилиума
         try {
-            const response = await fetch(`/api/chats/${chatId}`);
+            const response = await fetch(`/api/group_chats/${chatId}`);
             if (response.ok) {
                 const chatData = await response.json();
                 
-                // Заполняем поля данными чата
+                // Заполняем поля данными консилиума
                 chatIdInput.value = chatData.id;
                 titleInput.value = chatData.title || '';
                 systemPromptInput.value = chatData.system_prompt || '';
@@ -722,26 +801,52 @@ class SingleChat {
                 if (reasoningLenSlider) reasoningLenSlider.value = reasoningLen;
                 if (reasoningLenValue) reasoningLenValue.textContent = reasoningLen;
                 
-                // Загружаем список моделей
+                // Загружаем список моделей с чекбоксами
                 const settingsResponse = await fetch('/api/settings');
                 if (settingsResponse.ok) {
                     const settings = await settingsResponse.json();
                     const models = settings.models || [];
                     
-                    modelSelect.innerHTML = '';
-                    models.forEach(model => {
-                        const option = document.createElement('option');
-                        option.value = model.url;
-                        option.textContent = model.name;
-                        if (model.url === chatData.model) {
-                            option.selected = true;
+                    modelsSelector.innerHTML = '';
+                    models.forEach((model, index) => {
+                        const modelItem = document.createElement('div');
+                        modelItem.className = 'model-checkbox-item';
+                        
+                        // Проверяем, выбрана ли эта модель в консилиуме
+                        const isSelected = chatData.models && chatData.models.includes(model.url);
+                        
+                        modelItem.innerHTML = `
+                            <input type="checkbox" id="settings-model-${index}" value="${model.url}" data-name="${model.name}" ${isSelected ? 'checked' : ''}>
+                            <label for="settings-model-${index}">${model.name}</label>
+                        `;
+                        
+                        if (isSelected) {
+                            modelItem.classList.add('selected');
                         }
-                        modelSelect.appendChild(option);
+                        
+                        const checkbox = modelItem.querySelector('input[type="checkbox"]');
+                        checkbox.addEventListener('change', () => {
+                            if (checkbox.checked) {
+                                modelItem.classList.add('selected');
+                            } else {
+                                modelItem.classList.remove('selected');
+                            }
+                            this.updateModelsCountIndicator();
+                        });
+                        
+                        modelsSelector.appendChild(modelItem);
                     });
+                    
+                    // Добавляем индикатор количества
+                    const countIndicator = document.createElement('div');
+                    countIndicator.className = 'models-count-indicator';
+                    countIndicator.id = 'models-count-settings';
+                    modelsSelector.appendChild(countIndicator);
+                    this.updateModelsCountIndicator();
                 }
                 
-                // Показываем модальное окно с правильным display
-                modal.style.display = 'flex'; // Используем flex для центрирования
+                // Показываем модальное окно
+                modal.style.display = 'flex';
                 
                 // Инициализируем обработчики для ползунка reasoning length
                 this.initReasoningLenControls(modal);
@@ -750,60 +855,61 @@ class SingleChat {
                 document.body.style.overflow = 'hidden';
                 
             } else {
-                console.error('Ошибка загрузки данных чата');
-                alert('Ошибка загрузки данных чата');
+                console.error('Ошибка загрузки данных консилиума');
+                this.showInputErrorModal('Ошибка загрузки данных консилиума');
             }
         } catch (error) {
             console.error('Ошибка подключения:', error);
-            alert('Ошибка подключения к серверу');
+            this.showInputErrorModal('Ошибка подключения к серверу');
         }
     }
 
-    // Сохранение настроек чата (обновленная версия)
+    // Сохранение настроек консилиума
     async saveChatSettings() {
         const chatIdInput = document.getElementById('settings-chat-id');
         const titleInput = document.getElementById('settings-chat-title');
-        const modelSelect = document.getElementById('settings-chat-model');
+        const modelsSelector = document.getElementById('settings-models-selector');
         const systemPromptInput = document.getElementById('settings-system-prompt');
         const reasoningLenSlider = document.getElementById('settings-reasoning-len-slider');
         
         const chatId = chatIdInput.value;
         let title = titleInput.value.trim();
-        const modelUrl = modelSelect.value;
         const systemPrompt = systemPromptInput.value.trim();
         const reasoningLen = parseInt(reasoningLenSlider.value) || 1000;
         
-        // Ограничиваем длину названия чата до 50 символов
+        // Получаем выбранные модели
+        const selectedModels = Array.from(modelsSelector.querySelectorAll('input[type="checkbox"]:checked'))
+            .map(cb => cb.value);
+        
+        // Ограничиваем длину названия до 50 символов
         if (title.length > 50) {
             title = title.substring(0, 50);
         }
         
         if (!title) {
-            // Заменяем alert на модальное окно
-            this.showInputErrorModal('Пожалуйста, введите название чата');
+            this.showInputErrorModal('Пожалуйста, введите название консилиума');
             return;
         }
         
-        if (!modelUrl) {
-            // Заменяем alert на модальное окно
-            this.showInputErrorModal('Пожалуйста, выберите модель ИИ');
+        if (selectedModels.length < 2) {
+            this.showInputErrorModal('Выберите минимум 2 модели для консилиума');
             return;
         }
         
         try {
-            // Загружаем текущие данные чата
-            const response = await fetch(`/api/chats/${chatId}`);
+            // Загружаем текущие данные консилиума
+            const response = await fetch(`/api/group_chats/${chatId}`);
             if (response.ok) {
                 const chatData = await response.json();
                 
                 // Обновляем данные
                 chatData.title = title;
-                chatData.model = modelUrl;
-                chatData.system_prompt = systemPrompt || undefined; // Не добавляем, если пустой
+                chatData.models = selectedModels;
+                chatData.system_prompt = systemPrompt || undefined;
                 chatData.reasoning_len = reasoningLen;
                 
                 // Сохраняем обновленные данные
-                const updateResponse = await fetch(`/api/chats/${chatId}`, {
+                const updateResponse = await fetch(`/api/group_chats/${chatId}`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
@@ -819,6 +925,8 @@ class SingleChat {
                         if (titleElement) {
                             titleElement.textContent = title;
                         }
+                        // Обновляем бейдж моделей
+                        this.updateModelsBadge();
                     }
                     
                     this.loadChatsList();
@@ -826,12 +934,12 @@ class SingleChat {
                     // Закрываем модальное окно
                     document.getElementById('chat-settings-modal').style.display = 'none';
                 } else {
-                    console.error('Ошибка сохранения настроек чата');
-                    this.showInputErrorModal('Ошибка сохранения настроек чата');
+                    console.error('Ошибка сохранения настроек консилиума');
+                    this.showInputErrorModal('Ошибка сохранения настроек консилиума');
                 }
             } else {
-                console.error('Ошибка загрузки данных чата');
-                this.showInputErrorModal('Ошибка загрузки данных чата');
+                console.error('Ошибка загрузки данных консилиума');
+                this.showInputErrorModal('Ошибка загрузки данных консилиума');
             }
         } catch (error) {
             console.error('Ошибка подключения:', error);
@@ -852,7 +960,7 @@ class SingleChat {
     // Загрузка списка чатов
     async loadChatsList() {
         try {
-            const response = await fetch('/api/chats');
+            const response = await fetch('/api/group_chats');
             if (response.ok) {
                 const chats = await response.json();
                 this.renderChatsList(chats);
@@ -1084,7 +1192,7 @@ class SingleChat {
         try {
             this.stopPolling();
             
-            const response = await fetch(`/api/chats/${chatId}`);
+            const response = await fetch(`/api/group_chats/${chatId}`);
             if (response.ok) {
                 this.currentChatData = await response.json();
                 this.currentChatId = chatId;
@@ -1129,7 +1237,7 @@ class SingleChat {
         if (!this.currentChatId) return;
 
         try {
-            const response = await fetch(`/api/chats/${this.currentChatId}`);
+            const response = await fetch(`/api/group_chats/${this.currentChatId}`);
             if (response.ok) {
                 const updatedChatData = await response.json();
                 const newMessageCount = updatedChatData.messages ? updatedChatData.messages.length : 0;
@@ -1268,6 +1376,9 @@ class SingleChat {
             }
             titleElement.textContent = displayTitle;
         }
+        
+        // Обновляем бейдж с моделями
+        this.updateModelsBadge();
 
         const messagesElement = document.getElementById('chat-messages');
         if (messagesElement) {
@@ -1663,13 +1774,19 @@ class SingleChat {
         }
 
         const messageElement = document.createElement('div');
-        // Добавляем класс error для сообщений с ошибкой
-        const senderClass = message.sender === 'user' ? 'user' : message.sender === 'error' ? 'ai error' : 'ai';
+        // Добавляем класс error для сообщений с ошибкой, council для консилиумов
+        const senderClass = message.sender === 'user' ? 'user' : message.sender === 'error' ? 'ai error' : 'ai council';
         messageElement.className = `message ${senderClass}`;
         
         // Убедитесь, что у сообщения есть ID
         if (message.id !== undefined) {
             messageElement.dataset.messageId = message.id;
+        }
+        
+        // Для консилиума добавляем индекс модели
+        if (message.sender === 'ai' && message.sender_model) {
+            const modelIndex = this.getModelIndex(message.sender_model);
+            messageElement.dataset.modelIndex = modelIndex;
         }
         
         // Форматируем время из timestamp
@@ -1720,10 +1837,10 @@ class SingleChat {
             
             console.log('[REGEN] Рендеринг сообщения - isLoading:', isLoading, 'isError:', isError);
             
-            // Формируем HTML с заголовком модели
+            // Формируем HTML с заголовком модели (для консилиума используем специальный стиль)
             let headerHtml = '';
             if (senderName) {
-                headerHtml = `<div class="sender">${senderName}</div>`;
+                headerHtml = `<div class="message-model-label">${senderName}</div>`;
             }
             
             let regenerateButtonHtml = '';
@@ -2368,34 +2485,32 @@ class SingleChat {
         });
     }
 
-    // Отправка сообщения ИИ через API
+    // Отправка сообщения всем моделям консилиума через API
     async sendToAI(userMessage) {
         if (!this.currentChatId) {
-            throw new Error('Нет активного чата');
+            throw new Error('Нет активного консилиума');
         }
 
         try {
-            // 1. Создаем файл request.json
-            const response = await fetch('/api/create_request', {
+            // Отправляем сообщение всем моделям консилиума
+            const response = await fetch('/api/group_ai/send_message', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    chat: `${this.currentChatId}.json`
+                    chat_id: this.currentChatId,
+                    message: userMessage
                 })
             });
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.error || 'Ошибка создания запроса');
+                throw new Error(errorData.error || 'Ошибка отправки запроса');
             }
 
-            // 2. Ждем завершения обработки (опрашиваем чат на наличие нового сообщения от ИИ)
-            // Пока просто ждем несколько секунд, в реальной реализации можно сделать более умную проверку
-            await new Promise(resolve => setTimeout(resolve, 3000));
-            
-            console.log('Запрос отправлен ИИ через локальный API');
+            const result = await response.json();
+            console.log(`Запрос отправлен ${result.models_count} моделям консилиума`);
             
         } catch (error) {
             console.error('Ошибка отправки сообщения через локальный API:', error);
@@ -2408,7 +2523,7 @@ class SingleChat {
         if (!this.currentChatId || !this.currentChatData) return;
 
         try {
-            const response = await fetch(`/api/chats/${this.currentChatId}`, {
+            const response = await fetch(`/api/group_chats/${this.currentChatId}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -2741,7 +2856,7 @@ class SingleChat {
             }
             
             // Создаем новый чат с историей
-            const response = await fetch('/api/chats', {
+            const response = await fetch('/api/group_chats', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

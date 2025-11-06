@@ -114,6 +114,7 @@ def save_history(response, state = None, progress = 0):
     HISTORY_FILE_TEMP["messages"].append({
         'id': int(time.time() * 1000),  # Уникальный ID
         'sender': 'ai',
+        'sender_model': MODEL,
         "reasoning": reasoning,
         "answer": answer,
         'text':  text,
@@ -182,6 +183,7 @@ def send_message_api(history):
         HISTORY_FILE["messages"].append({
             'id': int(time.time() * 1000),
             'sender': 'error',
+            'sender_model': MODEL,
             'text': error_answer,
             'timestamp': datetime.now().isoformat()
         })
@@ -224,6 +226,7 @@ def main():
         HISTORY_FILE["messages"].append({
             'id': int(time.time() * 1000),
             'sender': 'error',
+            'sender_model': MODEL,
             'text': "⚠️При обработке запроса возникла ошибка⚠️\nЭто могло произойти из-за:\n❌Неработоспособности ключей API\n❌Ошибки в коде программы\n\nЕсли Вам срочно необходима помощь с решением проблемы, обратитесь в тех поддержку (смотрите раздел 'О приложении'). В противном случае попробуйте создать новый чат, перегенерировать текущий, или дождаться решения проблемы в новом обновлении.",
             'timestamp': datetime.now().isoformat()
         })

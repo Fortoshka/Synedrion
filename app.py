@@ -1,6 +1,5 @@
 from flask import Flask, render_template, jsonify, request
 from datetime import datetime
-from werkzeug.utils import secure_filename
 import time
 import threading
 import webview
@@ -28,6 +27,10 @@ DEFAULT_SETTINGS = {
 CHATS_DIR = 'chats'
 if not os.path.exists(CHATS_DIR):
     os.makedirs(CHATS_DIR)
+
+GROUP_CHATS_DIR = 'group_chats'
+if not os.path.exists(GROUP_CHATS_DIR):
+    os.makedirs(GROUP_CHATS_DIR)
 
 CONFIG_DIR = 'config'
 if not os.path.exists(CONFIG_DIR):
@@ -423,14 +426,18 @@ def process_file():
         if file.filename == '':
             return jsonify({'success': False, 'error': 'Файл не выбран'}), 400
         
+        # Сохраняем оригинальное имя файла
+        original_filename = file.filename
+        
         # Создаем временную директорию для загруженных файлов
         temp_dir = os.path.join(os.path.dirname(__file__), 'temp_uploads')
         if not os.path.exists(temp_dir):
             os.makedirs(temp_dir)
         
-        # Сохраняем файл временно
-        filename = secure_filename(file.filename)
-        temp_path = os.path.join(temp_dir, filename)
+        # Создаем уникальное временное имя файла с сохранением расширения
+        file_ext = os.path.splitext(original_filename)[1]
+        temp_filename = f"{uuid.uuid4()}{file_ext}"
+        temp_path = os.path.join(temp_dir, temp_filename)
         file.save(temp_path)
         
         # Обрабатываем файл в зависимости от типа
@@ -440,6 +447,10 @@ def process_file():
             result = FileHandler.process_text_file(temp_path)
         else:
             result = {'success': False, 'error': 'Неизвестный тип файла'}
+        
+        # Если обработка успешна, заменяем временное имя на оригинальное
+        if result.get('success'):
+            result['filename'] = original_filename
         
         # Удаляем временный файл
         try:
@@ -507,6 +518,169 @@ def hide_devlog():
     except Exception as e:
         print(f"Ошибка обновления devlog.html: {e}")
         return jsonify({'error': 'Ошибка обновления файла devlog'}), 500
+
+# ========== API для групповых чатов (Консилиумы) ==========
+
+@app.route('/api/group_chats', methods=['GET'])
+def get_group_chats_list():
+    """Получить список всех консилиумов"""
+    try:
+        chats = []
+        for filename in os.listdir(GROUP_CHATS_DIR):
+            if filename.endswith('.json'):
+                file_path = os.path.join(GROUP_CHATS_DIR, filename)
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        chat_data = json.load(f)
+                        chat_id = filename[:-5]
+                        preview = chat_data.get('title', 'Новый консилиум')
+                        models_count = len(chat_data.get('models', []))
+                        
+                        chats.append({
+                            'id': chat_id,
+                            'title': preview or 'Пустой консилиум',
+                            'models': chat_data.get('models', []),
+                            'models_count': models_count,
+                            'created_at': chat_data.get('created_at', datetime.now().isoformat())
+                        })
+                except Exception as e:
+                    print(f"Ошибка при чтении консилиума {filename}: {e}")
+                    continue
+        
+        chats.sort(key=lambda x: x['created_at'], reverse=True)
+        return jsonify(chats)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/group_chats', methods=['POST'])
+def create_new_group_chat():
+    """Создать новый консилиум"""
+    try:
+        data = request.get_json()
+        title = data.get('title', 'Новый консилиум')
+        models = data.get('models', [])
+        system_prompt = data.get('system_prompt', '')
+        reasoning_len = data.get('reasoning_len', 1000)
+        reasoning_len = max(0, min(2500, int(reasoning_len)))
+        
+        if len(models) < 2:
+            return jsonify({'error': 'Необходимо выбрать минимум 2 модели'}), 400
+        
+        chat_id = str(uuid.uuid4())
+        file_path = os.path.join(GROUP_CHATS_DIR, f"{chat_id}.json")
+        
+        new_chat = {
+            'id': chat_id,
+            'title': title,
+            'models': models,
+            'system_prompt': system_prompt if system_prompt else None,
+            'reasoning_len': reasoning_len,
+            'created_at': datetime.now().isoformat(),
+            'updated_at': datetime.now().isoformat(),
+            'messages': []
+        }
+        
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(new_chat, f, ensure_ascii=False, indent=2)
+        
+        return jsonify(new_chat)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/group_chats/<chat_id>', methods=['GET'])
+def get_group_chat(chat_id):
+    """Получить данные конкретного консилиума"""
+    try:
+        file_path = os.path.join(GROUP_CHATS_DIR, f"{chat_id}.json")
+        if not os.path.exists(file_path):
+            return jsonify({'error': 'Консилиум не найден'}), 404
+            
+        with open(file_path, 'r', encoding='utf-8') as f:
+            chat_data = json.load(f)
+        return jsonify(chat_data)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/group_chats/<chat_id>', methods=['PUT'])
+def update_group_chat(chat_id):
+    """Обновить консилиум"""
+    try:
+        data = request.get_json()
+        file_path = os.path.join(GROUP_CHATS_DIR, f"{chat_id}.json")
+        
+        if not os.path.exists(file_path):
+            return jsonify({'error': 'Консилиум не найден'}), 404
+        
+        reasoning_len = data.get('reasoning_len', 1000)
+        reasoning_len = max(0, min(2500, int(reasoning_len)))
+        data['reasoning_len'] = reasoning_len
+        
+        data['updated_at'] = datetime.now().isoformat()
+        
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+            
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/group_chats/<chat_id>', methods=['DELETE'])
+def delete_group_chat(chat_id):
+    """Удалить консилиум"""
+    try:
+        file_path = os.path.join(GROUP_CHATS_DIR, f"{chat_id}.json")
+        if not os.path.exists(file_path):
+            return jsonify({'error': 'Консилиум не найден'}), 404
+            
+        os.remove(file_path)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/group_ai/send_message', methods=['POST'])
+def send_group_ai_message():
+    """Отправка сообщения всем моделям в консилиуме"""
+    try:
+        data = request.get_json()
+        chat_id = data.get('chat_id')
+        user_message = data.get('message')
+        
+        if not chat_id or not user_message:
+            return jsonify({'error': 'Необходимо указать chat_id и message'}), 400
+        
+        file_path = os.path.join(GROUP_CHATS_DIR, f"{chat_id}.json")
+        if not os.path.exists(file_path):
+            return jsonify({'error': 'Консилиум не найден'}), 404
+        
+        with open(file_path, 'r', encoding='utf-8') as f:
+            chat_data = json.load(f)
+        
+        models = chat_data.get('models', [])
+        if not models:
+            return jsonify({'error': 'В консилиуме нет моделей'}), 400
+        
+        # Запускаем api_sender.pyw для каждой модели
+        system_prompt = chat_data.get('system_prompt', '')
+        reasoning_len = chat_data.get('reasoning_len', 1000)
+        
+        for model in models:
+            try:
+                subprocess.Popen([
+                    sys.executable,
+                    'api_sender.pyw',
+                    file_path,
+                    model,
+                    system_prompt,
+                    str(reasoning_len)
+                ])
+            except Exception as e:
+                print(f"Ошибка запуска api_sender для модели {model}: {e}")
+        
+        return jsonify({'success': True, 'models_count': len(models)})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# ========== Конец API для групповых чатов ==========
 
 def call_ai_api(message):
     return f"Это ответ ИИ на ваше сообщение: '{message}'. Не переживайте, однажды эта заглушка сменится на нормальный ответ."

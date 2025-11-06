@@ -3,23 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Одиночный чат - AI Chat Interface</title>
+    <title>Консилиумы - AI Chat Interface</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/chat.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/council.css') }}">
 </head>
 <body style="opacity: 0;">
     <div class="chat-container">
-        <!-- Боковая панель с чатами -->
+        <!-- Боковая панель с консилиумами -->
         <div class="sidebar" id="chat-sidebar">
             <div class="sidebar-header">
-                <h2>Чаты</h2>
+                <h2>Консилиумы</h2>
                 <button id="new-chat-btn" class="btn primary-btn small-btn">
-                    <span class="btn-text">+ Новый чат</span>
+                    <span class="btn-text">+ Новый консилиум</span>
                 </button>
             </div>
             <div class="chats-list" id="chats-list">
-                <!-- Список чатов будет загружен сюда -->
-                <div class="loading-placeholder">Загрузка чатов...</div>
+                <!-- Список консилиумов будет загружен сюда -->
+                <div class="loading-placeholder">Загрузка консилиумов...</div>
             </div>
             
             <!-- Кнопка выхода -->
@@ -34,13 +35,15 @@
         <div class="main-content">
             <div class="chat-header">
                 <button id="toggle-sidebar" class="menu-btn">☰</button>
-                <h1 id="current-chat-title">Выберите или создайте чат</h1>
+                <h1 id="current-chat-title">Выберите или создайте консилиум</h1>
+                <div id="council-models-display" class="council-models-badge"></div>
             </div>
             
             <div class="chat-messages" id="chat-messages">
                 <div class="welcome-message">
-                    <p>Добро пожаловать в чат с ИИ!</p>
-                    <p>Выберите существующий чат или создайте новый.</p>
+                    <p>Добро пожаловать в консилиум ИИ!</p>
+                    <p>Консилиум — это групповой чат, где несколько моделей ИИ совместно отвечают на ваши вопросы.</p>
+                    <p>Выберите существующий консилиум или создайте новый.</p>
                 </div>
             </div>
             
@@ -48,7 +51,7 @@
                 <div class="input-container">
                     <textarea 
                         id="message-input" 
-                        placeholder="Введите ваше сообщение..." 
+                        placeholder="Введите сообщение для всех моделей консилиума..."
                         rows="1"
                         disabled
                     ></textarea>
@@ -69,68 +72,62 @@
                         <div id="attach-menu" class="attach-menu hidden">
                             <div class="attach-menu-item" data-type="image">
                                 <span class="attach-menu-icon">🖼️</span>
-                                <span class="attach-menu-text">Картинка</span>
+                                <span class="attach-menu-text">Изображение</span>
                             </div>
                             <div class="attach-menu-item" data-type="text">
                                 <span class="attach-menu-icon">📄</span>
-                                <span class="attach-menu-text">Текстовый файл</span>
+                                <span class="attach-menu-text">Текст</span>
                             </div>
-                        </div>
-                        <!-- Всплывающее окно со списком прикрепленных файлов -->
-                        <div id="files-popup" class="files-popup hidden">
-                            <div class="files-popup-header">
-                                <span class="files-popup-title">Прикрепленные файлы</span>
-                            </div>
-                            <div id="files-popup-list" class="files-popup-list">
-                                <!-- Список файлов будет добавлен динамически -->
+                            <div class="attach-menu-item" data-type="code">
+                                <span class="attach-menu-icon">💻</span>
+                                <span class="attach-menu-text">Код</span>
                             </div>
                         </div>
                     </div>
-                    <!-- Скрытый input для выбора файлов -->
-                    <input type="file" id="file-input-image" accept="image/*" style="display: none;">
-                    <input type="file" id="file-input-text" accept=".txt" style="display: none;">
+                    <input type="file" id="file-input" style="display: none;" multiple>
                 </div>
+                <!-- Попап со списком прикрепленных файлов -->
+                <div id="files-popup" class="files-popup hidden"></div>
             </div>
         </div>
     </div>
 
-    <!-- Модальное окно для создания нового чата -->
+    <!-- Модальное окно создания консилиума -->
     <div id="new-chat-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Создать новый чат</h2>
+                <h2>Создать новый консилиум</h2>
                 <span class="close-modal">&times;</span>
             </div>
             <div class="modal-body">
                 <div class="form-group">
-                    <label for="chat-title">Название чата:</label>
-                    <input type="text" id="chat-title" placeholder="Введите название чата" required class="chat-name">
+                    <label for="chat-title">Название консилиума:</label>
+                    <input type="text" id="chat-title" placeholder="Например: Команда экспертов">
                 </div>
                 
                 <div class="form-group">
-                    <label for="chat-model">Выберите модель ИИ:</label>
-                    <select id="chat-model" required>
-                        <option value="">Загрузка моделей...</option>
-                    </select>
+                    <label>Выберите модели ИИ (минимум 2):</label>
+                    <div id="models-selector" class="models-selector">
+                        <!-- Модели будут загружены сюда динамически -->
+                    </div>
                 </div>
                 
                 <div class="form-group">
                     <label for="system-prompt">Системный промпт (необязательно):</label>
-                    <textarea id="system-prompt" placeholder="Введите системный промпт для ИИ..." rows="3"></textarea>
+                    <textarea id="system-prompt" placeholder="Введите системный промпт для всех моделей..." rows="3"></textarea>
                 </div>
                 
-                <!-- НОВЫЙ ЭЛЕМЕНТ: Ползунок длины рассуждения -->
+                <!-- Ползунок длины рассуждения -->
                 <div class="form-group">
                     <label for="create-reasoning-len">Максимальная длина рассуждения ИИ (токены): 
                         <span id="create-reasoning-len-value">1000</span>
                     </label>
                     <input type="range" id="create-reasoning-len-slider" min="0" max="2500" value="1000" step="10" class="reasoning-slider">
                 </div>
-                <!-- КОНЕЦ НОВОГО ЭЛЕМЕНТА -->
                 
                 <div class="modal-actions">
                     <button id="create-chat-confirm" class="btn primary-btn small-btn">
-                        <span class="btn-text">Создать чат</span>
+                        <span class="btn-text">Создать консилиум</span>
                     </button>
                     <button id="cancel-create-chat" class="btn secondary-btn small-btn">
                         <span class="btn-text">Отмена</span>
@@ -140,45 +137,44 @@
         </div>
     </div>
 
-    <!-- Модальное окно для настроек чата -->
+    <!-- Модальное окно настроек консилиума -->
     <div id="chat-settings-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Настройки чата</h2>
+                <h2>Настройки консилиума</h2>
                 <span class="close-settings-modal">&times;</span>
             </div>
             <div class="modal-body">
                 <input type="hidden" id="settings-chat-id">
                 
                 <div class="form-group">
-                    <label for="settings-chat-title">Название чата:</label>
-                    <input type="text" id="settings-chat-title" placeholder="Введите название чата" required class="chat-name">
+                    <label for="settings-chat-title">Название консилиума:</label>
+                    <input type="text" id="settings-chat-title" placeholder="Название консилиума">
                 </div>
                 
                 <div class="form-group">
-                    <label for="settings-chat-model">Модель ИИ:</label>
-                    <select id="settings-chat-model" required>
-                        <option value="">Загрузка моделей...</option>
-                    </select>
+                    <label>Модели ИИ (минимум 2):</label>
+                    <div id="settings-models-selector" class="models-selector">
+                        <!-- Модели будут загружены сюда -->
+                    </div>
                 </div>
                 
                 <div class="form-group">
                     <label for="settings-system-prompt">Системный промпт:</label>
-                    <textarea id="settings-system-prompt" placeholder="Введите системный промпт для ИИ..." rows="3"></textarea>
+                    <textarea id="settings-system-prompt" placeholder="Введите системный промпт для всех моделей..." rows="3"></textarea>
                 </div>
                 
-                <!-- НОВЫЙ ЭЛЕМЕНТ: Ползунок длины рассуждения в настройках -->
+                <!-- Ползунок длины рассуждения в настройках -->
                 <div class="form-group">
                     <label for="settings-reasoning-len">Максимальная длина рассуждения ИИ (токены): 
                         <span id="settings-reasoning-len-value">1000</span>
                     </label>
                     <input type="range" id="settings-reasoning-len-slider" min="0" max="2500" value="1000" step="10" class="reasoning-slider">
                 </div>
-                <!-- КОНЕЦ НОВОГО ЭЛЕМЕНТА -->
                 
                 <div class="modal-actions">
                     <button id="delete-chat-btn" class="btn danger-btn small-btn">
-                        <span class="btn-text">Удалить чат</span>
+                        <span class="btn-text">Удалить консилиум</span>
                     </button>
                     <div style="flex: 1;"></div>
                     <button id="save-chat-settings" class="btn primary-btn small-btn">
@@ -192,7 +188,21 @@
         </div>
     </div>
 
-    <!-- Модальное окно для подтверждения удаления чата -->
+    <!-- Модальное окно ошибки ввода -->
+    <div id="input-error-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-body">
+                <p id="input-error-message"></p>
+            </div>
+            <div class="modal-actions">
+                <button id="close-input-error" class="btn primary-btn small-btn">
+                    <span class="btn-text">ОК</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно подтверждения удаления -->
     <div id="delete-confirm-modal" class="modal">
         <div class="modal-content confirm-modal">
             <div class="modal-header">
@@ -200,7 +210,7 @@
                 <span class="close-delete-confirm">&times;</span>
             </div>
             <div class="modal-body">
-                <p>Вы уверены, что хотите удалить этот чат? Это действие нельзя отменить.</p>
+                <p>Вы уверены, что хотите удалить этот консилиум? Это действие нельзя отменить.</p>
                 <div class="modal-actions">
                     <button id="confirm-delete-btn" class="btn danger-btn small-btn">
                         <span class="btn-text">Удалить</span>
@@ -213,27 +223,15 @@
         </div>
     </div>
 
-    <div id="input-error-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Ошибка ввода</h2>
-                <span class="close-input-error-modal">&times;</span>
-            </div>
-            <div class="modal-body">
-                <p id="input-error-message">Пожалуйста, введите название чата</p>
-            </div>
-            <div class="modal-actions", style="padding-bottom: 20px;">
-                <button id="confirm-input-error-btn" class="btn primary-btn small-btn">
-                    <span class="btn-text">Упс, исправлю!</span>
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/council.js') }}"></script>
     <script>
-        document.addEventListener("DOMContentLoaded", function() {
-            document.getElementById('page').style.opacity = 1;
+        // Инициализация приложения
+        document.addEventListener('DOMContentLoaded', () => {
+            window.councilChat = new CouncilChat();
+            
+            // Плавное появление страницы
+            document.body.style.transition = 'opacity 0.3s';
+            document.body.style.opacity = '1';
         });
     </script>
 </body>
