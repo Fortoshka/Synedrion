@@ -74,20 +74,24 @@ def simulate_progress_real_time(stop_event, max_percent=80, total_time=35):
     while not stop_event.is_set():
         elapsed = time.time() - start_time
         progress =  (elapsed / (elapsed + total_time/2.5)) * max_percent
-        save_history({}, 'generating', progress=min(67, progress))
+        save_history({}, 'generating', progress=min(max_percent-3, progress))
         time.sleep(1)
 
 def load_history():
     """Загружает историю диалога из файла"""
-    history = [{"role": "system", "content": f"{BASE_SYSTEM_PROMPT} \n [USERPROMPT] \n{USER_SYSTEM_PROMPT} \n[/USERPROMPT] \n [/INSTRUCTION]"}]
+    history = [{"role": "system", "content": f"{BASE_SYSTEM_PROMPT} \n [USERPROMPT] \n{USER_SYSTEM_PROMPT} \n[/USERPROMPT] \n[/INSTRUCTION]"}]
+    
     for message in HISTORY_FILE["messages"]:
         if message["sender"] == "ai":
             history.append({"role": "assistant", "reasoning": message.get("reasoning", ""), "content": message.get("answer", "")})
         elif message["sender"] == "user":
-            filename = ""
-            for file_num in range(len(message.get("filename", []))):
-                filename += f"{file_num + 1} - {message["filename"][file_num]}\n    {message["file"][file_num]}\n"
-            history.append({"role": "user", "content": message.get("text", "") + f"[FILE]{filename}[/FILE]"})
+            history.append({"role": "user", "content": message.get("text", "")})
+            if message.get("filename", ''): 
+                filename = ""
+                for file_num in range(len(message.get("filename", []))):
+                    filename += f"{file_num + 1} - {message["filename"][file_num]}\n    {message["file"][file_num]}\n"
+                history[-1]["content"] += f"\n[FILE]{filename[:-2]}[/FILE]"
+            logging.info(history[-1])
         elif message["sender"] == "error":
             history.pop()
     logging.info(f"История диалога загружена. Всего сообщений: {len(history)}")
@@ -221,8 +225,8 @@ def main():
             logging.info("Ответ сохранён в истории.")
         else:
             logging.warning("Ответ не был получен.")
-    except:
-        logging.error(f"Ошибка в коде")
+    except Exception as e:
+        logging.error(f"Ошибка в коде {e}")
         HISTORY_FILE["messages"].append({
             'id': int(time.time() * 1000),
             'sender': 'error',
