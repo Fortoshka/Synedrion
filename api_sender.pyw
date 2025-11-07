@@ -7,7 +7,7 @@ import requests
 import json
 import os
 import logging
-import math
+from tool_calling import process_tool_calls, TOOLS
 
 LOG_PATH = os.path.join(os.path.dirname(__file__), "config", "logs.log")
 os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
@@ -91,7 +91,6 @@ def load_history():
                 for file_num in range(len(message.get("filename", []))):
                     filename += f"{file_num + 1} - {message["filename"][file_num]}\n    {message["file"][file_num]}\n"
                 history[-1]["content"] += f"\n[FILE]{filename[:-2]}[/FILE]"
-            logging.info(history[-1])
         elif message["sender"] == "error":
             history.pop()
     logging.info(f"История диалога загружена. Всего сообщений: {len(history)}")
@@ -136,7 +135,9 @@ def send_message_api(history):
     data = {
         "model": MODEL, 
         "messages": history,
-        "usage": {"include": True}
+        "tools": [{"type":"function","function":{"name":name, **TOOLS[name]}} for name in TOOLS],
+        "tool_choice": "auto",
+        "usage": {"include": True},
     }
     if REASONING_MAX>0:
         data["reasoning"] = {"max_tokens": REASONING_MAX }
@@ -151,7 +152,22 @@ def send_message_api(history):
         response = requests.post(API_URL, headers=headers, json=data, timeout=60)
         response.raise_for_status()
         result = response.json()
-        logging.info(f"Ответ от API успешно получен: {result}")
+        logging.info(f"Ответ от API успешно получен. {result}")
+
+        # Обрабатываем tool_calls (если будут) и возвращаем финальный ответ
+        final_result, tool_result = process_tool_calls(
+            result,
+            messages=history,
+            tools=[{"type":"function","function":{"name":name, **TOOLS[name]}} for name in TOOLS],
+            headers=headers,
+            api_url=API_URL,
+            model=MODEL
+        )
+        stop_event.set()
+        if final_result:
+            final_result["choices"][0]["message"]["reasoning"] = result["choices"][0]["message"]["reasoning"] + "\n" + final_result["choices"][0]["message"]["reasoning"]
+            logging.info(f"Ответ от API успешно получен. {final_result}")
+            return final_result 
         return result
     
     except requests.exceptions.RequestException as e:

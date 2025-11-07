@@ -2,9 +2,9 @@
   "fullscreen": false,
   "models": [
     {
-      "id": 1,
-      "name": "Qwen: Qwen3 Coder",
-      "url": "qwen/qwen3-coder:free"
+      "id": 9,
+      "name": "MiniMax: MiniMax M2",
+      "url": "minimax/minimax-m2:free"
     },
     {
       "id": 2,
@@ -32,19 +32,9 @@
       "url": "tngtech/deepseek-r1t-chimera:free"
     },
     {
-      "id": 7,
-      "name": "DeepSeek V3.1",
-      "url": "deepseek/deepseek-chat-v3.1:free"
-    },
-    {
-      "id": 8,
-      "name": "Google: Gemma 3 27B",
-      "url": "google/gemma-3-27b-it:free"
-    },
-    {
-      "id": 9,
-      "name": "MiniMax: MiniMax M2",
-      "url": "minimax/minimax-m2:free"
+      "id": 10,
+      "name": "Z.AI: GLM 4.5 Air",
+      "url": "z-ai/glm-4.5-air:free"
     }
   ],
   "theme": "dark"
