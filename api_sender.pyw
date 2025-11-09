@@ -165,7 +165,7 @@ def send_message_api(history):
         )
         stop_event.set()
         if final_result:
-            final_result["choices"][0]["message"]["reasoning"] = result["choices"][0]["message"]["reasoning"] + "\n" + final_result["choices"][0]["message"]["reasoning"]
+            final_result["choices"][0]["message"]["reasoning"] = result["choices"][0]["message"]["reasoning"] + "\n\n" + final_result["choices"][0]["message"]["reasoning"]
             logging.info(f"Ответ от API успешно получен. {final_result}")
             return final_result 
         return result

@@ -3,3 +3,4 @@ Flask==3.0.3
 pywebview==4.4.1
 PyQT6
 GitPython
+readability
