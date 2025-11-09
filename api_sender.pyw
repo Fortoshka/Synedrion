@@ -48,6 +48,9 @@ if not os.path.exists(KYES_PATH): KYES_PATH ="api_keys.example.json"
 API_KEYS_P = load_json(KYES_PATH)
 
 BASE_SYSTEM_PROMPT = open(os.path.join(os.path.dirname(__file__), "config", "system_promt.txt"), "r", encoding="utf-8").read()
+TOOLS_USE = [{"type":"function","function":{"name":name, **TOOLS[name]}} for name in TOOLS]
+if not HISTORY_FILE.get("search_web", ""):
+    TOOLS_USE = [tool for tool in TOOLS_USE if tool.get("function", {}).get("name", "") not in ("search_web", "summarize_url")]
 
 
 def get_api_keys():
@@ -65,7 +68,8 @@ def get_api_keys():
         return data
     except requests.exceptions.RequestException as e:
         logging.error(f"Ошибка при получении ключа API: {e}")
-        sys.exit(0) 
+        time.sleep(1)
+        return get_api_keys()
 
 def simulate_progress_real_time(stop_event, max_percent=80, total_time=35):
     """Линейный прогресс от 0 до max_percent с мгновенной остановкой."""
@@ -73,14 +77,13 @@ def simulate_progress_real_time(stop_event, max_percent=80, total_time=35):
     progress = 0
     while not stop_event.is_set():
         elapsed = time.time() - start_time
-        progress =  (elapsed / (elapsed + total_time/2.5)) * max_percent
+        progress =  (elapsed / (elapsed + total_time/2)) * max_percent
         save_history({}, 'generating', progress=min(max_percent-3, progress))
         time.sleep(1)
 
 def load_history():
     """Загружает историю диалога из файла"""
     history = [{"role": "system", "content": f"{BASE_SYSTEM_PROMPT} \n [USERPROMPT] \n{USER_SYSTEM_PROMPT} \n[/USERPROMPT] \n[/INSTRUCTION]"}]
-    
     for message in HISTORY_FILE["messages"]:
         if message["sender"] == "ai":
             history.append({"role": "assistant", "reasoning": message.get("reasoning", ""), "content": message.get("answer", "")})
@@ -126,7 +129,7 @@ def save_history(response, state = None, progress = 0):
     with open(HISTORY_PATH, "w", encoding="utf-8") as f:
         json.dump(HISTORY_FILE_TEMP, f, ensure_ascii=False, indent=2)
 
-def send_message_api(history):
+def send_message_api(history: list, attempt: int = 0):
     api_data = get_api_keys()
     headers = {
         "Authorization": f"Bearer {api_data["key"]}",
@@ -135,7 +138,7 @@ def send_message_api(history):
     data = {
         "model": MODEL, 
         "messages": history,
-        "tools": [{"type":"function","function":{"name":name, **TOOLS[name]}} for name in TOOLS],
+        "tools": TOOLS_USE,
         "tool_choice": "auto",
         "usage": {"include": True},
     }
@@ -154,20 +157,22 @@ def send_message_api(history):
         result = response.json()
         logging.info(f"Ответ от API успешно получен. {result}")
 
-        # Обрабатываем tool_calls (если будут) и возвращаем финальный ответ
-        final_result, tool_result = process_tool_calls(
+        follow_message = process_tool_calls(
             result,
             messages=history,
-            tools=[{"type":"function","function":{"name":name, **TOOLS[name]}} for name in TOOLS],
+            tools=TOOLS_USE,
             headers=headers,
             api_url=API_URL,
             model=MODEL
         )
+        if follow_message:
+            follow_send = send_message_api(follow_message)
+            reasoning_result = result["choices"][0]["message"].get("reasoning") or ""
+            reasoning_follow = follow_send["choices"][0]["message"].get("reasoning") or ""
+            follow_send["choices"][0]["message"]["reasoning"] = reasoning_result + "\n\n\n" + reasoning_follow
+            return follow_send
+
         stop_event.set()
-        if final_result:
-            final_result["choices"][0]["message"]["reasoning"] = result["choices"][0]["message"]["reasoning"] + "\n\n" + final_result["choices"][0]["message"]["reasoning"]
-            logging.info(f"Ответ от API успешно получен. {final_result}")
-            return final_result 
         return result
     
     except requests.exceptions.RequestException as e:
@@ -200,16 +205,17 @@ def send_message_api(history):
             error_answer += "К сожалению, сервера сейчас перегружены. Попробуйте позже или выберите другую модель."
         elif "404" in err:
             error_answer += "К сожалению, выбранная вами модель больше не поддерживается. Пожалуйста, выберите другую."
-        HISTORY_FILE["messages"].append({
-            'id': int(time.time() * 1000),
-            'sender': 'error',
-            'sender_model': MODEL,
-            'text': error_answer,
-            'timestamp': datetime.now().isoformat()
-        })
-        with open(HISTORY_PATH, "w", encoding="utf-8") as f:
-            json.dump(HISTORY_FILE, f, ensure_ascii=False, indent=2)
-        return None
+        if attempt >= 3:
+            HISTORY_FILE["messages"].append({
+                'id': int(time.time() * 1000),
+                'sender': 'error',
+                'sender_model': MODEL,
+                'text': error_answer,
+                'timestamp': datetime.now().isoformat()
+            })
+            with open(HISTORY_PATH, "w", encoding="utf-8") as f:
+                json.dump(HISTORY_FILE, f, ensure_ascii=False, indent=2)
+        return send_message_api(history, attempt=(attempt + 1))
 
     except KeyError:
         logging.error(f"Неверный формат ответа API: {response.text}")

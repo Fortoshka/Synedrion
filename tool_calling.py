@@ -22,8 +22,6 @@ logging.basicConfig(
     ]
 )
 
-# Описание инструментов — только те поля, которые должны попасть в payload['tools']
-# (description + parameters в формате JSON Schema)
 TOOLS: Dict[str, Dict[str, Any]] = {
     "get_exchange_rate": {
         "description": "Get exchange rate from base currency to target currency (default RUB).",
@@ -75,7 +73,7 @@ TOOLS: Dict[str, Dict[str, Any]] = {
             "required": ["url"]
         }
     },
-        "search_web":{
+    "search_web":{
         "description": "Выполняет интернет-поиск по запросу через Google и возвращается данные со страниц",
         "parameters": {
             "type": "object",
@@ -187,7 +185,6 @@ def summarize_url(url: str, max_chars: int = 64_000):
     Загружает страницу по URL, извлекает текст без HTML и возвращает его
     (обрезая по max_chars для LLM).
     """
-
     try:
         response = requests.get(url, timeout=10, headers={
             "User-Agent": "Mozilla/5.0"
@@ -248,7 +245,7 @@ def search_web(query: str, num_results=5):
 
         for item in data:
             logging.info(f"Вызов функции:summarize_url с аргументами {item.get("url")}")
-            website_info = summarize_url(url=item["url"], max_chars=24000)
+            website_info = summarize_url(url=item["url"], max_chars=8000)
             if website_info.get("title", ""):
                 results.append(website_info)
             
@@ -301,7 +298,7 @@ def process_tool_calls(result, messages, tools, headers, api_url, model):
 
     if not tool_calls:
         logging.info("Модель не вызвала инструмент.")
-        return 
+        return []
 
     tools_messages = []
     for i in range(len(tool_calls)):
@@ -339,20 +336,6 @@ def process_tool_calls(result, messages, tools, headers, api_url, model):
 
         logging.info(f"Инструмент выполнен успешно. Результат: {tool_result}")
 
-    followup_payload = {
-        "model": model,
-        "messages": messages + [choice_msg] + tools_messages,
-        "tools": tools,  # обязательно повторно
-        "usage": {"include": True}
-    }
+    return messages + [choice_msg] + tools_messages
     
-    try:
-        logging.info("Отправка сообщения в API с инструментами...")
-        resp2 = requests.post(api_url, headers=headers, json=followup_payload, timeout=30)
-        resp2.raise_for_status()
-        final = resp2.json()
-        return final, tools_messages
-    except Exception as e:
-        logging.error(f"Ошибка при отправке follow-up запроса: {e}")
-        return {"error": str(e)}
 
