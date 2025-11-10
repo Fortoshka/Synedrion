@@ -159,23 +159,29 @@ def get_weather(city=None, lat=None, lon=None) -> dict:
         "latitude": lat,
         "longitude": lon,
         "current_weather": True,
-        "timezone": "auto"
+        "forecast_days": 7,
+        "past_days": 2,
+        "timezone": "auto",
+        "daily": [
+            "temperature_2m_max",
+            "temperature_2m_min",
+            "precipitation_sum",
+            "windspeed_10m_max"
+        ],
+        "hourly": [
+            "temperature_2m",
+            "relativehumidity_2m",
+            "precipitation",
+            "weathercode",
+            "windspeed_10m"
+        ],
     }
 
     try:
         response = requests.get(url, params=params, timeout=5)
         response.raise_for_status()
         data = response.json()
-        weather = data.get("current_weather", {})
-        return {
-            "city": city,
-            "country": country,
-            "temperature": weather.get("temperature"),
-            "windspeed": weather.get("windspeed"),
-            "winddirection": weather.get("winddirection"),
-            "weathercode": weather.get("weathercode"),
-            "time": weather.get("time")
-        }
+        return data
     except requests.RequestException as e:
         logging.error(f"Ошибка при получении погоды: {e}")
         return {"error": str(e)}

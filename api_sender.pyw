@@ -137,6 +137,7 @@ def send_message_api(history: list, attempt: int = 0):
     }
     data = {
         "model": MODEL, 
+        "transforms": ["middle-out"],
         "messages": history,
         "tools": TOOLS_USE,
         "tool_choice": "auto",
