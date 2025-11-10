@@ -35,7 +35,7 @@ TOOLS: Dict[str, Dict[str, Any]] = {
         }
     },
     "get_weather": {
-        "description": "Get current weather. You can provide the city name (in English) or coordinates, but all parameters are optional. If no parameters are given, the function will automatically use the user's current location.",
+        "description": "Получить погоду с позапозавчера до недели вперед от текуйще даты. Вы можете указать название города (на английском языке) или координаты, но все параметры необязательны. Если параметры не указаны, функция автоматически использует текущее местоположение пользователя.",
         "parameters": {
             "type": "object",
             "properties": {

@@ -35,6 +35,11 @@
       "id": 10,
       "name": "Z.AI: GLM 4.5 Air",
       "url": "z-ai/glm-4.5-air:free"
+    },
+    {
+      "id": 11,
+      "name": "Polaris Alpha",
+      "url": "openrouter/polaris-alpha"
     }
   ],
   "theme": "dark"

@@ -47,6 +47,7 @@ KYES_PATH ="api_keys.json"
 if not os.path.exists(KYES_PATH): KYES_PATH ="api_keys.example.json"
 API_KEYS_P = load_json(KYES_PATH)
 
+TOOL_SUPPORTED_MODELS = load_json("tool_supported_models.json")
 BASE_SYSTEM_PROMPT = open(os.path.join(os.path.dirname(__file__), "config", "system_promt.txt"), "r", encoding="utf-8").read()
 TOOLS_USE = [{"type":"function","function":{"name":name, **TOOLS[name]}} for name in TOOLS]
 if not HISTORY_FILE.get("search_web", ""):
@@ -139,20 +140,22 @@ def send_message_api(history: list, attempt: int = 0):
         "model": MODEL, 
         "transforms": ["middle-out"],
         "messages": history,
-        "tools": TOOLS_USE,
         "tool_choice": "auto",
         "usage": {"include": True},
     }
+    if MODEL in TOOL_SUPPORTED_MODELS:
+        data["tools"] = TOOLS_USE
     if REASONING_MAX>0:
         data["reasoning"] = {"max_tokens": REASONING_MAX }
     else:
         data["reasoning"] = {"exclude": True} 
-    
+        
     try:
         logging.info("Отправка сообщения в API...")
-        stop_event = threading.Event()
-        thread = threading.Thread(target=simulate_progress_real_time, args=(stop_event, 80, 35))
-        thread.start()
+        if attempt == 0:
+            stop_event = threading.Event()
+            thread = threading.Thread(target=simulate_progress_real_time, args=(stop_event, 80, 35))
+            thread.start()
         response = requests.post(API_URL, headers=headers, json=data, timeout=60)
         response.raise_for_status()
         result = response.json()
@@ -167,13 +170,11 @@ def send_message_api(history: list, attempt: int = 0):
             model=MODEL
         )
         if follow_message:
-            follow_send = send_message_api(follow_message)
+            follow_send = send_message_api(history=follow_message, attempt=(attempt + 1))
             reasoning_result = result["choices"][0]["message"].get("reasoning") or ""
             reasoning_follow = follow_send["choices"][0]["message"].get("reasoning") or ""
             follow_send["choices"][0]["message"]["reasoning"] = reasoning_result + "\n\n\n" + reasoning_follow
             return follow_send
-
-        stop_event.set()
         return result
     
     except requests.exceptions.RequestException as e:
@@ -206,17 +207,11 @@ def send_message_api(history: list, attempt: int = 0):
             error_answer += "К сожалению, сервера сейчас перегружены. Попробуйте позже или выберите другую модель."
         elif "404" in err:
             error_answer += "К сожалению, выбранная вами модель больше не поддерживается. Пожалуйста, выберите другую."
-        if attempt >= 3:
-            HISTORY_FILE["messages"].append({
-                'id': int(time.time() * 1000),
-                'sender': 'error',
-                'sender_model': MODEL,
-                'text': error_answer,
-                'timestamp': datetime.now().isoformat()
-            })
-            with open(HISTORY_PATH, "w", encoding="utf-8") as f:
-                json.dump(HISTORY_FILE, f, ensure_ascii=False, indent=2)
-        return send_message_api(history, attempt=(attempt + 1))
+        if attempt >= 2:
+            fatal_error = True
+            return {"fatal_error": error_answer}
+        result = send_message_api(history, attempt=(attempt + 1))
+        return result
 
     except KeyError:
         logging.error(f"Неверный формат ответа API: {response.text}")
@@ -224,8 +219,6 @@ def send_message_api(history: list, attempt: int = 0):
 
     finally:
         try:
-            stop_event.set()
-            thread.join()
             response_del = requests.delete(
                 f"https://openrouter.ai/api/v1/keys/{api_data['data']['hash']}",
                 headers={"Authorization": f"Bearer {api_data['p_api']}"}
@@ -233,17 +226,34 @@ def send_message_api(history: list, attempt: int = 0):
             logging.info(f"API ключ удалён: {response_del.json()}")
         except Exception as e:
             logging.warning(f"Ошибка при удалении API ключа: {e}")
-
+        finally:
+            if attempt == 0 and thread is not None and thread.is_alive():
+                stop_event.set()
+                thread.join(timeout=5)
+            if attempt == 0 and isinstance(result, dict) and "fatal_error" in result:
+                error_answer = result["fatal_error"]
+                HISTORY_FILE["messages"].append({
+                    'id': int(time.time() * 1000),
+                    'sender': 'error',
+                    'sender_model': MODEL,
+                    'text': error_answer,
+                    'timestamp': datetime.now().isoformat()
+                })
+                with open(HISTORY_PATH, "w", encoding="utf-8") as f:
+                    json.dump(HISTORY_FILE, f, ensure_ascii=False, indent=2)
 
 def main():
     try:
         save_history({}, "start")
         history = load_history()
         answer = send_message_api(history)
-        if answer:
+        if answer.get("fatal_error", ""):
+            pass
+        elif answer:
             save_history({}, "end")
             time.sleep(1)
-            if answer['choices'][0]['message']['content'] == "" : answer['choices'][0]['message']['content'] += "[RESPONSE]\n*треск сверчков*\n[/RESPONSE]"
+            if answer.get('choices',[{}])[0].get('message',{}).get('content','') == "":
+                answer['choices'][0]['message']['content'] += "[RESPONSE]\n*треск сверчков*\n[/RESPONSE]"
             save_history(answer)
             logging.info("Ответ сохранён в истории.")
         else:
