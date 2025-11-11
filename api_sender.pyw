@@ -101,9 +101,10 @@ def load_history():
 def save_history(response, state = None, progress = 0):
     """Сохраняет историю диалога в файл"""
     HISTORY_FILE_TEMP = json.loads(json.dumps(HISTORY_FILE))
-    answer = response.get('choices',[{}])[0].get('message',{}).get('content','')
-    reasoning = response.get('choices',[{}])[0].get('message',{}).get('reasoning','')
-    if not answer:
+    answer = response.get('content', '')
+    reasoning = response.get('reasoning', '')
+    text = ""
+    if not answer and not reasoning:
         if state == "start":
             text = f"[LOADING:10]Создание запроса...[/LOADING]"
         elif state == 'generating':
@@ -140,6 +141,7 @@ def send_message_api(history: list, attempt: int = 0):
         "messages": history,
         "tool_choice": "auto",
         "usage": {"include": True},
+        "stream": True,
     }
     if MODEL in TOOL_SUPPORTED_MODELS:
         data["tools"] = TOOLS_USE
@@ -148,15 +150,41 @@ def send_message_api(history: list, attempt: int = 0):
     else:
         data["reasoning"] = {"exclude": True} 
         
+
     try:
+        result = {
+            "reasoning": "",
+            "content": "",
+            "tool_calls": []
+        }
         logging.info("Отправка сообщения в API...")
-        if attempt == 0:
-            stop_event = threading.Event()
-            thread = threading.Thread(target=simulate_progress_real_time, args=(stop_event, 80, 35))
-            thread.start()
-        response = requests.post(API_URL, headers=headers, json=data, timeout=60)
+        response = requests.post(API_URL, headers=headers, json=data, stream=True)
+        for line in response.iter_lines():
+            if line:
+                line_str = line.decode('utf-8')
+                if line_str.startswith('data: '):
+                    data = line_str[6:]
+                    if data == '[DONE]':
+                        break
+                    try:
+                        parsed = json.loads(data)
+                        func_call = parsed.get("choices", [{}])[0].get("delta", {}).get("tool_calls", [])
+                        logging.info(parsed)
+                        if func_call:
+                            result["tool_calls"] += func_call
+                        content = parsed.get("choices", [{}])[0].get("delta", {}).get("content", "") or ""
+                        reasoning = parsed.get("choices", [{}])[0].get("delta", {}).get("reasoning", "") or ""
+                        if reasoning:
+                            result["reasoning"] += reasoning
+                        if content:
+                            result["content"] += content    
+                        save_history(result)
+                            
+                    except json.JSONDecodeError:
+                        logging.warning("аааааааааааааааа")
+                        continue
+
         response.raise_for_status()
-        result = response.json()
         logging.info(f"Ответ от API успешно получен. {result}")
 
         follow_message = process_tool_calls(
@@ -168,10 +196,11 @@ def send_message_api(history: list, attempt: int = 0):
             model=MODEL
         )
         if follow_message:
+            logging.info(follow_message)
             follow_send = send_message_api(history=follow_message)
-            reasoning_result = result["choices"][0]["message"].get("reasoning") or ""
-            reasoning_follow = follow_send["choices"][0]["message"].get("reasoning") or ""
-            follow_send["choices"][0]["message"]["reasoning"] = reasoning_result + "\n\n\n" + reasoning_follow
+            reasoning_result = result.get("reasoning") or ""
+            reasoning_follow = follow_send.get("reasoning") or ""
+            follow_send["reasoning"] = reasoning_result + "\n\n\n" + reasoning_follow
             return follow_send
         return result
     
@@ -225,9 +254,6 @@ def send_message_api(history: list, attempt: int = 0):
         except Exception as e:
             logging.warning(f"Ошибка при удалении API ключа: {e}")
         finally:
-            if attempt == 0 and thread is not None and thread.is_alive():
-                stop_event.set()
-                thread.join(timeout=5)
             if attempt == 0 and isinstance(result, dict) and "fatal_error" in result:
                 error_answer = result["fatal_error"]
                 HISTORY_FILE["messages"].append({
@@ -248,10 +274,9 @@ def main():
         if answer.get("fatal_error", ""):
             pass
         elif answer:
-            save_history({}, "end")
             time.sleep(1)
-            if answer.get('choices',[{}])[0].get('message',{}).get('content','') == "":
-                answer['choices'][0]['message']['content'] += "[RESPONSE]\n*треск сверчков*\n[/RESPONSE]"
+            if answer.get('content','') == "":
+                answer['content'] += "[RESPONSE]\n*треск сверчков*\n[/RESPONSE]"
             save_history(answer)
             logging.info("Ответ сохранён в истории.")
         else:

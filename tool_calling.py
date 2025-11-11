@@ -258,7 +258,7 @@ def search_web(query: str, num_results=5):
     logging.info(f"Получен ответ от {len(results)}")
     return results
 
-def get_exchange_rate(base: str, target: str = "RUB") -> dict:
+def get_exchange_rate(base: str = "USD", target: str = "RUB") -> dict:
     logging.info(base)
     base = base.upper().strip()
     target = target.upper().strip() if target else "RUB"
@@ -299,8 +299,8 @@ def process_tool_calls(result, messages, tools, headers, api_url, model):
     - tools: список описаний инструментов
     - headers, api_url, model: для follow-up запроса
     """
-    choice_msg = result.get("choices", [{}])[0].get("message", {})
-    tool_calls = choice_msg.get("tool_calls")
+    choice_msg = {"role": "assistant", "reasoning": result.get("reasoning", ""), "content": result.get("content", "")}
+    tool_calls = result.get("tool_calls")
 
     if not tool_calls:
         logging.info("Модель не вызвала инструмент.")
