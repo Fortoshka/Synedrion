@@ -1,6 +1,4 @@
 from datetime import datetime
-import random
-import sys
 import threading
 import time
 import requests
@@ -50,7 +48,7 @@ API_KEYS_P = load_json(KYES_PATH)
 TOOL_SUPPORTED_MODELS = load_json("tool_supported_models.json")
 BASE_SYSTEM_PROMPT = open(os.path.join(os.path.dirname(__file__), "config", "system_promt.txt"), "r", encoding="utf-8").read()
 TOOLS_USE = [{"type":"function","function":{"name":name, **TOOLS[name]}} for name in TOOLS]
-if not HISTORY_FILE.get("search_web", ""):
+if not HISTORY_FILE.get("search_web", "123"):
     TOOLS_USE = [tool for tool in TOOLS_USE if tool.get("function", {}).get("name", "") not in ("search_web", "summarize_url")]
 
 
@@ -68,7 +66,7 @@ def get_api_keys():
         logging.info(f"Новый API ключ получен: {data.get('data', {}).get('hash', 'нет hash')}")
         return data
     except requests.exceptions.RequestException as e:
-        logging.error(f"Ошибка при получении ключа API: {e}")
+        logging.error(f"Ошибка при получении ключа API: {e}", exc_info=True)
         time.sleep(1)
         return get_api_keys()
 
@@ -170,7 +168,7 @@ def send_message_api(history: list, attempt: int = 0):
             model=MODEL
         )
         if follow_message:
-            follow_send = send_message_api(history=follow_message, attempt=(attempt + 1))
+            follow_send = send_message_api(history=follow_message)
             reasoning_result = result["choices"][0]["message"].get("reasoning") or ""
             reasoning_follow = follow_send["choices"][0]["message"].get("reasoning") or ""
             follow_send["choices"][0]["message"]["reasoning"] = reasoning_result + "\n\n\n" + reasoning_follow
@@ -178,7 +176,7 @@ def send_message_api(history: list, attempt: int = 0):
         return result
     
     except requests.exceptions.RequestException as e:
-        logging.error(f"Ошибка сети при запросе: {e}")
+        logging.error(f"Ошибка сети при запросе: {e}", exc_info=True)
         err = str(e)
         error_answer = f"Ошибка сети при запросе: {err}\n"
         response = e.response 
@@ -210,7 +208,7 @@ def send_message_api(history: list, attempt: int = 0):
         if attempt >= 2:
             fatal_error = True
             return {"fatal_error": error_answer}
-        result = send_message_api(history, attempt=(attempt + 1))
+        result = send_message_api(history=history, attempt=(attempt + 1))
         return result
 
     except KeyError:
@@ -246,7 +244,7 @@ def main():
     try:
         save_history({}, "start")
         history = load_history()
-        answer = send_message_api(history)
+        answer = send_message_api(history=history)
         if answer.get("fatal_error", ""):
             pass
         elif answer:
@@ -259,7 +257,7 @@ def main():
         else:
             logging.warning("Ответ не был получен.")
     except Exception as e:
-        logging.error(f"Ошибка в коде {e}")
+        logging.error(f"Ошибка в коде: {e}", exc_info=True)
         HISTORY_FILE["messages"].append({
             'id': int(time.time() * 1000),
             'sender': 'error',
