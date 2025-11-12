@@ -98,7 +98,7 @@ def load_history():
     logging.info(f"История диалога загружена. Всего сообщений: {len(history)}")
     return history
 
-def save_history(response, state = None, progress = 0):
+def save_history(response : dict = {}, state = None, progress = 0):
     """Сохраняет историю диалога в файл"""
     HISTORY_FILE_TEMP = json.loads(json.dumps(HISTORY_FILE))
     answer = response.get('content', '')
@@ -106,17 +106,18 @@ def save_history(response, state = None, progress = 0):
     text = ""
     if not answer and not reasoning:
         if state == "start":
-            text = f"[LOADING:10]Создание запроса...[/LOADING]"
+            text = f"[LOADING:25]Создание запроса...[/LOADING]"
         elif state == 'generating':
-            text = f"[LOADING:{int(20 + progress)}]Генерация ответа...[/LOADING]"
+            text = f"[LOADING:{progress}]Генерация ответа...[/LOADING]"
         elif state == 'end':
             text = f"[LOADING:100]Форматирование...[/LOADING]"
     elif reasoning:
         text = f"[THOUGHTS]\n{reasoning}\n[/THOUGHTS]\n{answer}" 
-        logging.info("История успешно сохранена.")
     else:
         text = answer + " "
-        logging.info("История успешно сохранена.")
+    if answer.rfind("[CODE") != -1 and answer.rfind("[/CODE]") and answer.rfind("[CODE") < answer.rfind("[/CODE]") :
+        text += "[/CODE]"
+
     HISTORY_FILE_TEMP["messages"].append({
         'id': int(time.time() * 1000),  # Уникальный ID
         'sender': 'ai',
@@ -128,6 +129,7 @@ def save_history(response, state = None, progress = 0):
     })
     with open(HISTORY_PATH, "w", encoding="utf-8") as f:
         json.dump(HISTORY_FILE_TEMP, f, ensure_ascii=False, indent=2)
+    return True
 
 def send_message_api(history: list, attempt: int = 0):
     api_data = get_api_keys()
@@ -155,11 +157,15 @@ def send_message_api(history: list, attempt: int = 0):
         result = {
             "reasoning": "",
             "content": "",
-            "tool_calls": []
+            "tool_calls": [],
+            "fatal_error": False
         }
+        tool_calls_buffer = {}
         logging.info("Отправка сообщения в API...")
+        if attempt == 0:
+            save_history({}, state="generating", progress=50)
         response = requests.post(API_URL, headers=headers, json=data, stream=True)
-        for line in response.iter_lines():
+        for line in response.iter_lines(1024):
             if line:
                 line_str = line.decode('utf-8')
                 if line_str.startswith('data: '):
@@ -168,25 +174,50 @@ def send_message_api(history: list, attempt: int = 0):
                         break
                     try:
                         parsed = json.loads(data)
-                        func_call = parsed.get("choices", [{}])[0].get("delta", {}).get("tool_calls", [])
-                        logging.info(parsed)
-                        if func_call:
-                            result["tool_calls"] += func_call
+                        # logging.info(parsed)
+                        delta = parsed.get("choices", [{}])[0].get("delta", {})
+                        delta_tool_calls = delta.get("tool_calls", [])
+                        if delta_tool_calls:
+                            for tool_call_chunk in delta_tool_calls:
+                                index = tool_call_chunk.get("index")
+                                if index is not None:
+                                    if index not in tool_calls_buffer:
+                                        tool_calls_buffer[index] = {
+                                            "id": tool_call_chunk.get("id"),
+                                            "type": tool_call_chunk.get("type"),
+                                            "function": {
+                                                "name": tool_call_chunk.get("function", {}).get("name", ""),
+                                                "arguments": ""
+                                            }
+                                        }
+                                    
+                                    if "id" in tool_call_chunk and not tool_calls_buffer[index]["id"]:
+                                        tool_calls_buffer[index]["id"] = tool_call_chunk["id"]
+                                    if "type" in tool_call_chunk and not tool_calls_buffer[index]["type"]:
+                                        tool_calls_buffer[index]["type"] = tool_call_chunk["type"]
+                                    if "name" in tool_call_chunk.get("function", {}):
+                                        tool_calls_buffer[index]["function"]["name"] = tool_call_chunk["function"]["name"]
+
+                                    args_chunk = tool_call_chunk.get("function", {}).get("arguments", "")
+                                    if args_chunk:
+                                        tool_calls_buffer[index]["function"]["arguments"] += args_chunk
+
                         content = parsed.get("choices", [{}])[0].get("delta", {}).get("content", "") or ""
                         reasoning = parsed.get("choices", [{}])[0].get("delta", {}).get("reasoning", "") or ""
                         if reasoning:
                             result["reasoning"] += reasoning
                         if content:
-                            result["content"] += content    
-                        save_history(result)
+                            result["content"] += content 
+                        result["tool_calls"] = [tool_calls_buffer[k] for k in sorted(tool_calls_buffer.keys())]   
+                        save_history(response=result, state="generating", progress=50)
                             
-                    except json.JSONDecodeError:
-                        logging.warning("аааааааааааааааа")
+                    except Exception as e :
+                        logging.warning("аааааааааааааааа",e)
                         continue
 
-        response.raise_for_status()
         logging.info(f"Ответ от API успешно получен. {result}")
-
+        logging.info(f"История сохранена. {save_history(response=result)}")
+        
         follow_message = process_tool_calls(
             result,
             messages=history,
@@ -195,9 +226,12 @@ def send_message_api(history: list, attempt: int = 0):
             api_url=API_URL,
             model=MODEL
         )
+        
         if follow_message:
+            if attempt in (0,1):
+                save_history({}, state="generating", progress=75)
             logging.info(follow_message)
-            follow_send = send_message_api(history=follow_message)
+            follow_send = send_message_api(history=follow_message, attempt=1)
             reasoning_result = result.get("reasoning") or ""
             reasoning_follow = follow_send.get("reasoning") or ""
             follow_send["reasoning"] = reasoning_result + "\n\n\n" + reasoning_follow
@@ -234,15 +268,17 @@ def send_message_api(history: list, attempt: int = 0):
             error_answer += "К сожалению, сервера сейчас перегружены. Попробуйте позже или выберите другую модель."
         elif "404" in err:
             error_answer += "К сожалению, выбранная вами модель больше не поддерживается. Пожалуйста, выберите другую."
-        if attempt >= 2:
-            fatal_error = True
-            return {"fatal_error": error_answer}
+        if attempt >= 3:
+            result["fatal_error"] = error_answer
+            return result
         result = send_message_api(history=history, attempt=(attempt + 1))
         return result
 
     except KeyError:
         logging.error(f"Неверный формат ответа API: {response.text}")
         return None
+    except Exception as e:
+        logging.error(f"Ошибка в основном блоке: {e}", exc_info=True)
 
     finally:
         try:
@@ -254,7 +290,7 @@ def send_message_api(history: list, attempt: int = 0):
         except Exception as e:
             logging.warning(f"Ошибка при удалении API ключа: {e}")
         finally:
-            if attempt == 0 and isinstance(result, dict) and "fatal_error" in result:
+            if attempt == 0 and isinstance(result, dict) and result["fatal_error"]:
                 error_answer = result["fatal_error"]
                 HISTORY_FILE["messages"].append({
                     'id': int(time.time() * 1000),
@@ -277,7 +313,7 @@ def main():
             time.sleep(1)
             if answer.get('content','') == "":
                 answer['content'] += "[RESPONSE]\n*треск сверчков*\n[/RESPONSE]"
-            save_history(answer)
+            logging.info(f"История сохранена. {save_history(answer)}")
             logging.info("Ответ сохранён в истории.")
         else:
             logging.warning("Ответ не был получен.")

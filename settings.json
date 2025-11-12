@@ -3,8 +3,8 @@
   "models": [
     {
       "id": 9,
-      "name": "MiniMax: MiniMax M2",
-      "url": "minimax/minimax-m2:free"
+      "name": "Kwaipilot: KAT-Coder-Pro V1",
+      "url": "kwaipilot/kat-coder-pro:free"
     },
     {
       "id": 2,
