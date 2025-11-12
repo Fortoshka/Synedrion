@@ -299,8 +299,11 @@ def process_tool_calls(result, messages, tools, headers, api_url, model):
     - tools: список описаний инструментов
     - headers, api_url, model: для follow-up запроса
     """
-    choice_msg = {"role": "assistant", "reasoning": result.get("reasoning", ""), "content": result.get("content", "")}
-    tool_calls = result.get("tool_calls")
+    choice_msg = {"role": "assistant", "reasoning": "", "content": ""}
+    for message in result:
+        choice_msg["reasoning"] = message.get("reasoning", "")
+        choice_msg["content"] = message.get("content", "")
+    tool_calls = result[-1].get("tool_calls")
 
     if not tool_calls:
         logging.info("Модель не вызвала инструмент.")

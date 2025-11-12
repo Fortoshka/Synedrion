@@ -99,37 +99,39 @@ def load_history():
     logging.info(f"История диалога загружена. Всего сообщений: {len(history)}")
     return history
 
-def save_history(response : dict = {}, state = None, progress = 0):
+def save_history(response : list = [{}], progress = 0):
     """Сохраняет историю диалога в файл"""
-    HISTORY_FILE_TEMP = json.loads(json.dumps(HISTORY_FILE))
-    answer = response.get('content', '')
-    reasoning = response.get('reasoning', '')
+    HISTORY_FILE_TEMP = HISTORY_FILE.copy()
     text = ""
-    if not answer and not reasoning:
-        if state == "start":
-            text = f"[LOADING:25]Создание запроса...[/LOADING]"
-        elif state == 'generating':
-            text = f"[LOADING:{progress}]Создание запроса...[/LOADING]"
-    elif reasoning:
-        text = f"[THOUGHTS]\n{reasoning}\n[/THOUGHTS]\n{answer}" 
-    else:
-        text = answer + " "
-        
-    open_matches = list(re.finditer(r'\[CODE', answer))
-    close_matches = list(re.finditer(r'\[/CODE\]', answer))
-    all_tags = sorted(open_matches + close_matches, key=lambda m: m.start())
+    answer = ""
+    reasoning = ""
+    if response is not None:
+        for message in response:
+            answer = message.get('content', '')
+            reasoning = message.get('reasoning', '').strip()
+            if answer == "" and reasoning == "" and progress:
+                text = f"[LOADING:{1+progress}]Создание запроса...[/LOADING]"
+                logging.info(text)
+                break
+            if reasoning:
+                text += f"[THOUGHTS]\n{reasoning}\n[/THOUGHTS]\n{answer}" 
+            else:
+                text = answer + " "
+                
+            open_matches = list(re.finditer(r'\[CODE', answer))
+            close_matches = list(re.finditer(r'\[/CODE\]', answer))
+            all_tags = sorted(open_matches + close_matches, key=lambda m: m.start())
 
-    open_count = 0
-    for tag in all_tags:
-        if tag.group().startswith('[/CODE'):
+            open_count = 0
+            for tag in all_tags:
+                if tag.group().startswith('[/CODE'):
+                    if open_count > 0:
+                        open_count -= 1 
+                else: 
+                    open_count += 1 
+
             if open_count > 0:
-                open_count -= 1 
-        else: 
-            open_count += 1 
-
-    if open_count > 0:
-        text += "[/CODE]"
-
+                text += "[/CODE]"
 
     HISTORY_FILE_TEMP["messages"].append({
         'id': int(time.time() * 1000),  # Уникальный ID
@@ -144,7 +146,7 @@ def save_history(response : dict = {}, state = None, progress = 0):
         json.dump(HISTORY_FILE_TEMP, f, ensure_ascii=False, indent=2)
     return True
 
-def send_message_api(history: list, attempt: int = 0):
+def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
     api_data = get_api_keys()
     headers = {
         "Authorization": f"Bearer {api_data["key"]}",
@@ -164,19 +166,19 @@ def send_message_api(history: list, attempt: int = 0):
         payload["reasoning"] = {"max_tokens": REASONING_MAX }
     else:
         payload["reasoning"] = {"exclude": True} 
-        
-    result = {
 
+    result.append({
         "reasoning": "",
         "content": "",
         "tool_calls": [],
         "fatal_error": False
-    }
+    })
+
     tool_calls_buffer = {}
     try:
         logging.info("Отправка сообщения в API...")
-        if attempt == 0:
-            save_history({}, state="generating", progress=50)
+        if tools_send == 0 and error_count == 0:
+            save_history(progress=50)
 
         response = requests.post(API_URL, headers=headers, json=payload, stream=True)
 
@@ -240,14 +242,14 @@ def send_message_api(history: list, attempt: int = 0):
                                         if args_chunk:
                                             tool_calls_buffer[index]["function"]["arguments"] += args_chunk
 
-                            content = delta.get("content", "") or ""
-                            reasoning = delta.get("reasoning", "") or ""
+                            content = delta.get("content", "") 
+                            reasoning = delta.get("reasoning", "") 
                             if reasoning:
-                                result["reasoning"] += reasoning
+                                result[-1]["reasoning"] += reasoning
                             if content:
-                                result["content"] += content
+                                result[-1]["content"] += content
                             
-                            save_history(response=result, state="generating", progress=50)
+                            save_history(response=result)
 
                         except json.JSONDecodeError as je:
                             logging.warning(f"Не удалось распарсить chunk: {data_part}, ошибка: {je}")
@@ -261,13 +263,21 @@ def send_message_api(history: list, attempt: int = 0):
                 http.client.IncompleteRead,
                 OSError,
                 requests.exceptions.HTTPError) as stream_error:
-            logging.error(f"Ошибка при чтении потока: {stream_error}")
+            logging.error(f"Ошибка при чтении потока: {stream_error}", exc_info=True)
             raise requests.exceptions.RequestException(f"Ошибка при чтении потока: {stream_error}") from stream_error
         
-        result["tool_calls"] = [tool_calls_buffer[k] for k in sorted(tool_calls_buffer.keys())]
-        logging.info(f"Ответ от API успешно получен. {result}")
+        result[-1]["tool_calls"] = [tool_calls_buffer[k] for k in sorted(tool_calls_buffer.keys())]
+        logging.info(f"Ответ от API успешно получен. {result[-1]}")
         logging.info(f"История сохранена. {save_history(response=result)}")
         
+        if result[-1]["tool_calls"]:
+            temp_result = result.copy()
+            temp_result[-1] = {"content": temp_result[-1].get("content", "") + "\nОжидание ответа инструментов ",
+                                   "reasoning": temp_result[-1].get("reasoning", ""),
+                                   "tool_calls": temp_result[-1].get("tool_calls", ""),
+                                   "fatal_error": False}
+            save_history(response=temp_result)
+
         follow_message = process_tool_calls(
             result,
             messages=history,
@@ -278,20 +288,14 @@ def send_message_api(history: list, attempt: int = 0):
         )
 
         if follow_message:
-            temp_result = {"content": result.get("content", "") + "\nОжидание ответа инстументов",
-                           "reasoning": result.get("reasoning", ""),
-                           "tool_calls": result.get("tool_calls", ""),
-                           "fatal_error": False}
-            logging.info(temp_result)
-            save_history(response=temp_result)
-            follow_send = send_message_api(history=follow_message, attempt=1) 
-            follow_send["content"] = result.get("content") + follow_send.get("content")
-            follow_send["reasoning"] = result.get("reasoning") + follow_send.get("reasoning")
+            follow_send = send_message_api(history=follow_message, tools_send=1) 
+            save_history(response=follow_send)
+            logging.info("Ответ после вызова инструментов сохранён.")
             return follow_send
         return result
 
     except requests.exceptions.RequestException as e:
-        logging.error(f"Ошибка сети при запросе: {e}")
+        logging.error(f"Ошибка сети при запросе: {e}", exc_info=True)
         err = str(e)
         error_answer = f"Ошибка сети при запросе: {err}\n"
         response_obj = e.response 
@@ -325,24 +329,24 @@ def send_message_api(history: list, attempt: int = 0):
             error_answer += "К сожалению, сервера сейчас перегружены. Попробуйте позже или выберите другую модель."
         elif "404" in err:
             error_answer += "К сожалению, выбранная вами модель больше не поддерживается. Пожалуйста, выберите другую."
-        if attempt >= 3: 
-            result["fatal_error"] = True
-            result["fatal_error_message"] = error_answer
+        if error_count >= 3: 
+            result[-1]["fatal_error"] = True
+            result[-1]["fatal_error_message"] = error_answer
             time.sleep(1)
             return result
-        result_retry = send_message_api(history=history, attempt=(attempt + 1))
+        result_retry = send_message_api(history=history, error_count=(error_count + 1), tools_send=tools_send)
         return result_retry
 
     except KeyError as ke:
         logging.error(f"Неверный формат ответа API: {response.text if 'response' in locals() else 'response не определён'}, ошибка: {ke}", exc_info=True)
-        result["fatal_error"] = True
-        result["fatal_error_message"] = f"Неверный формат ответа API: {ke}"
+        result[-1]["fatal_error"] = True
+        result[-1]["fatal_error_message"] = f"Неверный формат ответа API: {ke}"
         return result
 
     except Exception as e:
         logging.error(f"Неожиданная ошибка в основном блоке: {e}", exc_info=True)
-        result["fatal_error"] = True
-        result["fatal_error_message"] = f"Неожиданная ошибка: {e}"
+        result[-1]["fatal_error"] = True
+        result[-1]["fatal_error_message"] = f"Неожиданная ошибка: {e}"
         return result
 
     finally:
@@ -355,9 +359,8 @@ def send_message_api(history: list, attempt: int = 0):
         except Exception as e:
             logging.warning(f"Ошибка при удалении API ключа: {e}")
         
-        logging.info(result.get("fatal_error"))
-        if result.get("fatal_error"):
-            error_answer = result.get("fatal_error_message", "Произошла ошибка.")
+        if result[-1].get("fatal_error"):
+            error_answer = result[-1].get("fatal_error_message", "Произошла ошибка.")
             HISTORY_FILE["messages"].append({
                 'id': int(time.time() * 1000),
                 'sender': 'error',
@@ -370,15 +373,17 @@ def send_message_api(history: list, attempt: int = 0):
 
 def main():
     try:
-        save_history({}, "start")
+        save_history(progress=25)
         history = load_history()
+        global result
+        result = []
         answer = send_message_api(history=history)
-        if answer.get("fatal_error", ""):
+        if answer[-1].get("fatal_error", ""):
             pass
         elif answer:
             time.sleep(1)
-            if answer.get('content','') == "":
-                answer['content'] += "[RESPONSE]\n*треск сверчков*\n[/RESPONSE]"
+            if answer[-1].get('content','') == "":
+                answer[-1]['content'] += "[RESPONSE]\n*треск сверчков*\n[/RESPONSE]"
             logging.info(f"История сохранена. {save_history(answer)}")
             logging.info("Ответ сохранён в истории.")
         else:
