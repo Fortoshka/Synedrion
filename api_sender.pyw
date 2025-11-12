@@ -1,5 +1,6 @@
 from datetime import datetime
-import threading
+import http
+import re
 import time
 import requests
 import json
@@ -108,15 +109,27 @@ def save_history(response : dict = {}, state = None, progress = 0):
         if state == "start":
             text = f"[LOADING:25]Создание запроса...[/LOADING]"
         elif state == 'generating':
-            text = f"[LOADING:{progress}]Генерация ответа...[/LOADING]"
-        elif state == 'end':
-            text = f"[LOADING:100]Форматирование...[/LOADING]"
+            text = f"[LOADING:{progress}]Создание запроса...[/LOADING]"
     elif reasoning:
         text = f"[THOUGHTS]\n{reasoning}\n[/THOUGHTS]\n{answer}" 
     else:
         text = answer + " "
-    if answer.rfind("[CODE") != -1 and answer.rfind("[/CODE]") and answer.rfind("[CODE") < answer.rfind("[/CODE]") :
+        
+    open_matches = list(re.finditer(r'\[CODE', answer))
+    close_matches = list(re.finditer(r'\[/CODE\]', answer))
+    all_tags = sorted(open_matches + close_matches, key=lambda m: m.start())
+
+    open_count = 0
+    for tag in all_tags:
+        if tag.group().startswith('[/CODE'):
+            if open_count > 0:
+                open_count -= 1 
+        else: 
+            open_count += 1 
+
+    if open_count > 0:
         text += "[/CODE]"
+
 
     HISTORY_FILE_TEMP["messages"].append({
         'id': int(time.time() * 1000),  # Уникальный ID
@@ -137,7 +150,7 @@ def send_message_api(history: list, attempt: int = 0):
         "Authorization": f"Bearer {api_data["key"]}",
         "Content-Type": "application/json"
     }
-    data = {
+    payload = {
         "model": MODEL, 
         "transforms": ["middle-out"],
         "messages": history,
@@ -146,75 +159,112 @@ def send_message_api(history: list, attempt: int = 0):
         "stream": True,
     }
     if MODEL in TOOL_SUPPORTED_MODELS:
-        data["tools"] = TOOLS_USE
+        payload["tools"] = TOOLS_USE
     if REASONING_MAX>0:
-        data["reasoning"] = {"max_tokens": REASONING_MAX }
+        payload["reasoning"] = {"max_tokens": REASONING_MAX }
     else:
-        data["reasoning"] = {"exclude": True} 
+        payload["reasoning"] = {"exclude": True} 
         
+    result = {
 
+        "reasoning": "",
+        "content": "",
+        "tool_calls": [],
+        "fatal_error": False
+    }
+    tool_calls_buffer = {}
     try:
-        result = {
-            "reasoning": "",
-            "content": "",
-            "tool_calls": [],
-            "fatal_error": False
-        }
-        tool_calls_buffer = {}
         logging.info("Отправка сообщения в API...")
         if attempt == 0:
             save_history({}, state="generating", progress=50)
-        response = requests.post(API_URL, headers=headers, json=data, stream=True)
-        for line in response.iter_lines(1024):
-            if line:
-                line_str = line.decode('utf-8')
-                if line_str.startswith('data: '):
-                    data = line_str[6:]
-                    if data == '[DONE]':
-                        break
-                    try:
-                        parsed = json.loads(data)
-                        # logging.info(parsed)
-                        delta = parsed.get("choices", [{}])[0].get("delta", {})
-                        delta_tool_calls = delta.get("tool_calls", [])
-                        if delta_tool_calls:
-                            for tool_call_chunk in delta_tool_calls:
-                                index = tool_call_chunk.get("index")
-                                if index is not None:
-                                    if index not in tool_calls_buffer:
-                                        tool_calls_buffer[index] = {
-                                            "id": tool_call_chunk.get("id"),
-                                            "type": tool_call_chunk.get("type"),
-                                            "function": {
-                                                "name": tool_call_chunk.get("function", {}).get("name", ""),
-                                                "arguments": ""
+
+        response = requests.post(API_URL, headers=headers, json=payload, stream=True)
+
+        try:
+            response.raise_for_status()
+            
+            for line in response.iter_lines(1024):
+                if line:
+                    line_str = line.decode('utf-8')
+                    stripped_line = line_str.strip()
+
+                    if line_str.startswith(":"):
+                        logging.debug("Игнорируем служебную строку: OPENROUTER PROCESSING")
+                        continue 
+
+                    if stripped_line.startswith('{') and stripped_line.endswith('}'):
+                        try:
+                            potential_error_json = json.loads(stripped_line)
+                            if "error" in potential_error_json:
+                                logging.error(f"Ошибка от API в строке: {potential_error_json}")
+                                from requests.models import Response
+                                fake_response = Response()
+                                fake_response.status_code = potential_error_json["error"].get("code", 500)
+                                fake_response._content = json.dumps(potential_error_json).encode('utf-8')
+                                http_error = requests.exceptions.HTTPError(response=fake_response)
+                                raise http_error
+                        except json.JSONDecodeError:
+                            pass 
+
+                    if line_str.startswith(''):
+                        data_part = line_str[6:]
+                        if data_part == '[DONE]':
+                            logging.info("Поток завершён сервером [DONE].")
+                            break
+                        try:
+                            parsed = json.loads(data_part)
+                            delta = parsed.get("choices", [{}])[0].get("delta", {})
+                            delta_tool_calls = delta.get("tool_calls", [])
+                            if delta_tool_calls:
+                                for tool_call_chunk in delta_tool_calls:
+                                    index = tool_call_chunk.get("index")
+                                    if index is not None:
+                                        if index not in tool_calls_buffer:
+                                            tool_calls_buffer[index] = {
+                                                "id": tool_call_chunk.get("id"),
+                                                "type": tool_call_chunk.get("type"),
+                                                "function": {
+                                                    "name": tool_call_chunk.get("function", {}).get("name", ""),
+                                                    "arguments": ""
+                                                }
                                             }
-                                        }
-                                    
-                                    if "id" in tool_call_chunk and not tool_calls_buffer[index]["id"]:
-                                        tool_calls_buffer[index]["id"] = tool_call_chunk["id"]
-                                    if "type" in tool_call_chunk and not tool_calls_buffer[index]["type"]:
-                                        tool_calls_buffer[index]["type"] = tool_call_chunk["type"]
-                                    if "name" in tool_call_chunk.get("function", {}):
-                                        tool_calls_buffer[index]["function"]["name"] = tool_call_chunk["function"]["name"]
 
-                                    args_chunk = tool_call_chunk.get("function", {}).get("arguments", "")
-                                    if args_chunk:
-                                        tool_calls_buffer[index]["function"]["arguments"] += args_chunk
+                                        if "id" in tool_call_chunk and not tool_calls_buffer[index]["id"]:
+                                            tool_calls_buffer[index]["id"] = tool_call_chunk["id"]
+                                        if "type" in tool_call_chunk and not tool_calls_buffer[index]["type"]:
+                                            tool_calls_buffer[index]["type"] = tool_call_chunk["type"]
+                                        if "name" in tool_call_chunk.get("function", {}):
+                                            tool_calls_buffer[index]["function"]["name"] = tool_call_chunk["function"]["name"]
 
-                        content = parsed.get("choices", [{}])[0].get("delta", {}).get("content", "") or ""
-                        reasoning = parsed.get("choices", [{}])[0].get("delta", {}).get("reasoning", "") or ""
-                        if reasoning:
-                            result["reasoning"] += reasoning
-                        if content:
-                            result["content"] += content 
-                        result["tool_calls"] = [tool_calls_buffer[k] for k in sorted(tool_calls_buffer.keys())]   
-                        save_history(response=result, state="generating", progress=50)
+                                        args_chunk = tool_call_chunk.get("function", {}).get("arguments", "")
+                                        if args_chunk:
+                                            tool_calls_buffer[index]["function"]["arguments"] += args_chunk
+
+                            content = delta.get("content", "") or ""
+                            reasoning = delta.get("reasoning", "") or ""
+                            if reasoning:
+                                result["reasoning"] += reasoning
+                            if content:
+                                result["content"] += content
                             
-                    except Exception as e :
-                        logging.warning("аааааааааааааааа",e)
-                        continue
+                            save_history(response=result, state="generating", progress=50)
 
+                        except json.JSONDecodeError as je:
+                            logging.warning(f"Не удалось распарсить chunk: {data_part}, ошибка: {je}")
+                            continue
+                        except Exception as e_inner:
+                            logging.warning(f"Ошибка при обработке чанка: {e_inner}")
+                            raise e_inner
+
+        except (requests.exceptions.ChunkedEncodingError,
+                requests.exceptions.ConnectionError,
+                http.client.IncompleteRead,
+                OSError,
+                requests.exceptions.HTTPError) as stream_error:
+            logging.error(f"Ошибка при чтении потока: {stream_error}")
+            raise requests.exceptions.RequestException(f"Ошибка при чтении потока: {stream_error}") from stream_error
+        
+        result["tool_calls"] = [tool_calls_buffer[k] for k in sorted(tool_calls_buffer.keys())]
         logging.info(f"Ответ от API успешно получен. {result}")
         logging.info(f"История сохранена. {save_history(response=result)}")
         
@@ -226,30 +276,37 @@ def send_message_api(history: list, attempt: int = 0):
             api_url=API_URL,
             model=MODEL
         )
-        
+
         if follow_message:
-            if attempt in (0,1):
-                save_history({}, state="generating", progress=75)
-            logging.info(follow_message)
-            follow_send = send_message_api(history=follow_message, attempt=1)
-            reasoning_result = result.get("reasoning") or ""
-            reasoning_follow = follow_send.get("reasoning") or ""
-            follow_send["reasoning"] = reasoning_result + "\n\n\n" + reasoning_follow
+            temp_result = {"content": result.get("content", "") + "\nОжидание ответа инстументов",
+                           "reasoning": result.get("reasoning", ""),
+                           "tool_calls": result.get("tool_calls", ""),
+                           "fatal_error": False}
+            logging.info(temp_result)
+            save_history(response=temp_result)
+            follow_send = send_message_api(history=follow_message, attempt=1) 
+            follow_send["content"] = result.get("content") + follow_send.get("content")
+            follow_send["reasoning"] = result.get("reasoning") + follow_send.get("reasoning")
             return follow_send
         return result
-    
+
     except requests.exceptions.RequestException as e:
-        logging.error(f"Ошибка сети при запросе: {e}", exc_info=True)
+        logging.error(f"Ошибка сети при запросе: {e}")
         err = str(e)
         error_answer = f"Ошибка сети при запросе: {err}\n"
-        response = e.response 
-        logging.error(f"Ошибка сети при запросе: {response.json()}")
-        if response is not None:
+        response_obj = e.response 
+        if response_obj is not None:
             try:
-                response_json = response.json()
+                response_json = response_obj.json()
+                logging.error(f"Ошибка сети при запросе (JSON): {response_json}")
             except ValueError:
+                logging.error(f"Ошибка сети при запросе (text): {response_obj.text}")
                 response_json = None
-        if "429" in err:
+        else:
+            logging.error("Ответ от сервера отсутствует (ошибка до получения ответа).")
+            response_json = None
+
+        if response_json and response_json.get("error", {}).get("code") == 429 or "429" in err:
             error_answer += "Выбранная модель сейчас недоступна из-за высокой нагрузки или тот ключ, котрый вам выпал врмено не работате попробуйте перезапустить. Попробуйте выбрать другую или попробйте позже."
             try:
                 now_utc = int(time.time())
@@ -258,8 +315,8 @@ def send_message_api(history: list, attempt: int = 0):
                     reset_ts = (response_json.get('error', {}).get('metadata', {}).get('headers', {}).get('X-RateLimit-Reset'))
                 if reset_ts:
                     reset_time_utc = datetime.utcfromtimestamp(int(reset_ts) / 1000)
-                    reset_time_unix = datetime.utcfromtimestamp(int(reset_ts) / 1000)- datetime.utcfromtimestamp(now_utc) 
-                    logging.error(f"Сброс лимита произойдет: {reset_time_utc}. Ключ заработает через {reset_time_unix} ")
+                    reset_time_unix = datetime.utcfromtimestamp(int(reset_ts) / 1000) - datetime.utcfromtimestamp(now_utc)
+                    logging.error(f"Сброс лимита произойдет: {reset_time_utc}. Ключ заработает через {reset_time_unix}")
             finally:
                 API_KEYS_P.append(API_KEYS_P.pop(0))
                 with open(KYES_PATH, "w", encoding="utf-8") as f:
@@ -268,17 +325,25 @@ def send_message_api(history: list, attempt: int = 0):
             error_answer += "К сожалению, сервера сейчас перегружены. Попробуйте позже или выберите другую модель."
         elif "404" in err:
             error_answer += "К сожалению, выбранная вами модель больше не поддерживается. Пожалуйста, выберите другую."
-        if attempt >= 3:
-            result["fatal_error"] = error_answer
+        if attempt >= 3: 
+            result["fatal_error"] = True
+            result["fatal_error_message"] = error_answer
+            time.sleep(1)
             return result
-        result = send_message_api(history=history, attempt=(attempt + 1))
+        result_retry = send_message_api(history=history, attempt=(attempt + 1))
+        return result_retry
+
+    except KeyError as ke:
+        logging.error(f"Неверный формат ответа API: {response.text if 'response' in locals() else 'response не определён'}, ошибка: {ke}", exc_info=True)
+        result["fatal_error"] = True
+        result["fatal_error_message"] = f"Неверный формат ответа API: {ke}"
         return result
 
-    except KeyError:
-        logging.error(f"Неверный формат ответа API: {response.text}")
-        return None
     except Exception as e:
-        logging.error(f"Ошибка в основном блоке: {e}", exc_info=True)
+        logging.error(f"Неожиданная ошибка в основном блоке: {e}", exc_info=True)
+        result["fatal_error"] = True
+        result["fatal_error_message"] = f"Неожиданная ошибка: {e}"
+        return result
 
     finally:
         try:
@@ -289,18 +354,19 @@ def send_message_api(history: list, attempt: int = 0):
             logging.info(f"API ключ удалён: {response_del.json()}")
         except Exception as e:
             logging.warning(f"Ошибка при удалении API ключа: {e}")
-        finally:
-            if attempt == 0 and isinstance(result, dict) and result["fatal_error"]:
-                error_answer = result["fatal_error"]
-                HISTORY_FILE["messages"].append({
-                    'id': int(time.time() * 1000),
-                    'sender': 'error',
-                    'sender_model': MODEL,
-                    'text': error_answer,
-                    'timestamp': datetime.now().isoformat()
-                })
-                with open(HISTORY_PATH, "w", encoding="utf-8") as f:
-                    json.dump(HISTORY_FILE, f, ensure_ascii=False, indent=2)
+        
+        logging.info(result.get("fatal_error"))
+        if result.get("fatal_error"):
+            error_answer = result.get("fatal_error_message", "Произошла ошибка.")
+            HISTORY_FILE["messages"].append({
+                'id': int(time.time() * 1000),
+                'sender': 'error',
+                'sender_model': MODEL,
+                'text': error_answer,
+                'timestamp': datetime.now().isoformat()
+            })
+            with open(HISTORY_PATH, "w", encoding="utf-8") as f:
+                json.dump(HISTORY_FILE, f, ensure_ascii=False, indent=2)
 
 def main():
     try:
