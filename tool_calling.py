@@ -193,7 +193,6 @@ def summarize_url(url: str, max_chars: int = 64_000):
     """
     try:
         response = requests.get(url, timeout=10, headers={
-            "User-Agent": "Mozilla/5.0"
         })
         response.raise_for_status()
     except Exception as e:
@@ -250,7 +249,7 @@ def search_web(query: str, num_results=5):
         data = requests.get(url, headers=headers, params=params).json().get("organic", [])
 
         for item in data:
-            logging.info(f"Вызов функции:summarize_url с аргументами {item.get("url")}")
+            logging.info(f"Вызов функции:summarize_url с аргументами {item.get('url')}")
             website_info = summarize_url(url=item["url"], max_chars=8000)
             if website_info.get("title", ""):
                 results.append(website_info)
