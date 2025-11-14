@@ -781,4 +781,4 @@ if __name__ == '__main__':
     else:
         webview.create_window('Synedrion', 'http://127.0.0.1:1703', width=1200, height=800, min_size=(600, 800))
     
-    webview.start(icon="logo.ico")
+    webview.start()

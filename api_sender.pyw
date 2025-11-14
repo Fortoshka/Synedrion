@@ -101,7 +101,7 @@ def load_history():
 
 def save_history(response : list = [{}], progress = 0):
     """Сохраняет историю диалога в файл"""
-    HISTORY_FILE_TEMP = HISTORY_FILE.copy()
+    HISTORY_FILE_TEMP = json.loads(json.dumps(HISTORY_FILE))
     text = ""
     answer = ""
     reasoning = ""

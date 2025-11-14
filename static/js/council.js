@@ -1437,6 +1437,9 @@ class CouncilChat {
     updateMessageContent(messageElement, messageData) {
         if (!messageElement || !messageData) return;
         
+        // Убираем класс new-message если он есть (отключаем анимацию появления блока)
+        messageElement.classList.remove('new-message');
+        
         // Обновляем атрибуты
         messageElement.dataset.messageId = messageData.id;
         
@@ -1463,13 +1466,14 @@ class CouncilChat {
                     console.log('[UPDATE] Плавное обновление успешно!');
                 }
             } else {
-                // Это обычное сообщение - обновляем полностью
+                // Это обычное сообщение - обновляем с анимацией нового контента
                 const processedContent = this.processAllAITags(messageData.text);
                 
                 // Находим контейнер содержимого сообщения
                 const contentContainer = messageElement.querySelector('.message-content');
                 if (contentContainer) {
-                    contentContainer.innerHTML = processedContent;
+                    // Умное обновление: сравниваем старый и новый контент
+                    this.smoothUpdateContent(contentContainer, processedContent);
                 }
             }
             
@@ -1520,6 +1524,104 @@ class CouncilChat {
         // Инициализируем обработчики для кнопок копирования кода (если есть)
         this.initCodeCopyButtons();
         this.initCodeDownloadButtons();
+    }
+
+    smoothUpdateContent(container, newContent) {
+        // Получаем старый HTML
+        const oldHTML = container.innerHTML;
+        
+        // Если контент идентичен, не обновляем
+        if (oldHTML === newContent) {
+            return;
+        }
+        
+        // Создаем временный элемент для парсинга нового контента
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = newContent;
+        
+        // Создаем временный элемент для парсинга старого контента
+        const oldDiv = document.createElement('div');
+        oldDiv.innerHTML = oldHTML;
+        
+        // Получаем все дочерние элементы
+        const newChildren = Array.from(tempDiv.children);
+        const oldChildren = Array.from(oldDiv.children);
+        
+        // Проверяем, добавились ли новые элементы
+        if (newChildren.length > oldChildren.length) {
+            // Есть новые элементы - добавляем их с анимацией
+            for (let i = oldChildren.length; i < newChildren.length; i++) {
+                const newElement = newChildren[i].cloneNode(true);
+                // Устанавливаем начальное состояние для transition
+                newElement.style.opacity = '0';
+                newElement.style.transform = 'translateY(10px)';
+                newElement.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+                container.appendChild(newElement);
+                
+                // Принудительный reflow
+                void newElement.offsetHeight;
+                
+                // Запускаем transition
+                requestAnimationFrame(() => {
+                    newElement.style.opacity = '1';
+                    newElement.style.transform = 'translateY(0)';
+                    
+                    // Очищаем inline стили после завершения
+                    setTimeout(() => {
+                        newElement.style.opacity = '';
+                        newElement.style.transform = '';
+                        newElement.style.transition = '';
+                    }, 500);
+                });
+            }
+        } else if (newChildren.length === oldChildren.length) {
+            // Количество элементов не изменилось, проверяем содержимое последнего
+            const lastOldChild = oldChildren[oldChildren.length - 1];
+            const lastNewChild = newChildren[newChildren.length - 1];
+            
+            if (lastOldChild && lastNewChild && lastOldChild.innerHTML !== lastNewChild.innerHTML) {
+                // Последний элемент изменился - обновляем его содержимое
+                const oldText = lastOldChild.textContent || '';
+                const newText = lastNewChild.textContent || '';
+                
+                if (newText.length > oldText.length) {
+                    // Текст добавился - анимируем обновление
+                    const targetElement = container.children[oldChildren.length - 1];
+                    if (targetElement) {
+                        // Устанавливаем начальное состояние
+                        targetElement.style.opacity = '0';
+                        targetElement.style.transform = 'translateY(10px)';
+                        targetElement.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+                        targetElement.innerHTML = lastNewChild.innerHTML;
+                        
+                        // Принудительный reflow
+                        void targetElement.offsetHeight;
+                        
+                        // Запускаем transition
+                        requestAnimationFrame(() => {
+                            targetElement.style.opacity = '1';
+                            targetElement.style.transform = 'translateY(0)';
+                            
+                            // Очищаем inline стили после завершения
+                            setTimeout(() => {
+                                targetElement.style.opacity = '';
+                                targetElement.style.transform = '';
+                                targetElement.style.transition = '';
+                            }, 500);
+                        });
+                    }
+                } else {
+                    // Текст изменился, но не увеличился - обновляем без анимации
+                    container.innerHTML = newContent;
+                }
+            }
+        } else {
+            // Элементов стало меньше или структура изменилась - полная замена
+            container.innerHTML = newContent;
+        }
+        
+        // Инициализируем обработчики для новых элементов
+        this.initThoughtsToggles();
     }
 
     // Отображение чата без анимации (для обновлений)
@@ -1782,9 +1884,9 @@ class CouncilChat {
         }
 
         const messageElement = document.createElement('div');
-        // Добавляем класс error для сообщений с ошибкой, council для консилиумов
+        // Добавляем класс error для сообщений с ошибкой, council для консилиумов, new-message для анимации
         const senderClass = message.sender === 'user' ? 'user' : message.sender === 'error' ? 'ai error' : 'ai council';
-        messageElement.className = `message ${senderClass}`;
+        messageElement.className = `message ${senderClass} new-message`;
         
         // Убедитесь, что у сообщения есть ID
         if (message.id !== undefined) {
@@ -1911,6 +2013,11 @@ class CouncilChat {
         messagesElement.appendChild(messageElement);
         messagesElement.scrollTop = messagesElement.scrollHeight;
         
+        // Удаляем класс new-message после завершения анимации
+        setTimeout(() => {
+            messageElement.classList.remove('new-message');
+        }, 300);
+        
         // Инициализируем обработчики для кнопок копирования кода
         this.initCodeCopyButtons();
         this.initCodeDownloadButtons();
@@ -1986,36 +2093,18 @@ class CouncilChat {
             return this.createLoadingMessageHTML(progressPercent, loadingText);
         }
 
-        // 2. Обработка [THOUGHTS] с поддержкой сворачивания (СВЕРНУТ по умолчанию)
-        let thoughtsHtml = '';
-        const thoughtsRegex = /\[THOUGHTS\]([\s\S]*?)\[\/THOUGHTS\]/;
-        const thoughtsMatch = thoughtsRegex.exec(text);
-        if (thoughtsMatch) {
-            const thoughtsContent = thoughtsMatch[1].trim();
-            // Создаем СВЕРНУТЫЙ блок мыслей
-            thoughtsHtml = `
-                <div class="ai-thoughts-container">
-                    <div class="ai-thoughts-header">
-                        <span class="ai-thoughts-label-main">Мысли ИИ</span>
-                        <button class="ai-thoughts-toggle" aria-label="Развернуть мысли">+</button>
-                    </div>
-                    <div class="ai-thoughts-content collapsed">${this.escapeHtml(thoughtsContent)}
-                    </div>
-                </div>
-            `;
-            // Удаляем обработанный тег из текста
-            text = text.replace(thoughtsMatch[0], '');
-        }
-
-        // 3. Обрабатываем текст построчно, сохраняя порядок CODE блоков
-        // Разбиваем текст на части: обычный текст и CODE блоки
+        // 2. Обрабатываем текст построчно, сохраняя порядок всех блоков (THOUGHTS и CODE)
+        // Разбиваем текст на части: обычный текст, THOUGHTS блоки и CODE блоки
         const parts = [];
-        const codeRegex = /\[CODE:\s*([^\]]+?)\]([\s\S]*?)\[\/CODE\]/g;
+        
+        // Создаем комбинированный regex для поиска THOUGHTS и CODE
+        const combinedRegex = /\[THOUGHTS\]([\s\S]*?)\[\/THOUGHTS\]|\[CODE:\s*([^\]]+?)\]([\s\S]*?)\[\/CODE\]/g;
         let lastIndex = 0;
         let match;
+        let thoughtsCounter = 0;
 
-        while ((match = codeRegex.exec(text)) !== null) {
-            // Добавляем текст до CODE блока
+        while ((match = combinedRegex.exec(text)) !== null) {
+            // Добавляем текст до текущего блока
             if (match.index > lastIndex) {
                 const textBefore = text.substring(lastIndex, match.index).trim();
                 if (textBefore) {
@@ -2023,16 +2112,28 @@ class CouncilChat {
                 }
             }
             
-            // Добавляем CODE блок
-            const language = match[1].trim();
-            let codeContent = match[2];
-            codeContent = codeContent.replace(/^\s*\n/, '').replace(/\n\s*$/, '\n');
-            parts.push({ type: 'code', language: language, content: codeContent });
+            // Определяем тип блока и добавляем его
+            if (match[0].startsWith('[THOUGHTS]')) {
+                // Это THOUGHTS блок
+                const thoughtsContent = match[1].trim();
+                thoughtsCounter++;
+                parts.push({ 
+                    type: 'thoughts', 
+                    content: thoughtsContent,
+                    id: thoughtsCounter 
+                });
+            } else {
+                // Это CODE блок
+                const language = match[2].trim();
+                let codeContent = match[3];
+                codeContent = codeContent.replace(/^\s*\n/, '').replace(/\n\s*$/, '\n');
+                parts.push({ type: 'code', language: language, content: codeContent });
+            }
             
             lastIndex = match.index + match[0].length;
         }
         
-        // Добавляем оставшийся текст после последнего CODE блока
+        // Добавляем оставшийся текст после последнего блока
         if (lastIndex < text.length) {
             const textAfter = text.substring(lastIndex).trim();
             if (textAfter) {
@@ -2040,20 +2141,29 @@ class CouncilChat {
             }
         }
         
-        // Если не было CODE блоков, добавляем весь текст
+        // Если не было блоков, добавляем весь текст
         if (parts.length === 0 && text.trim()) {
             parts.push({ type: 'text', content: text.trim() });
         }
 
-        // 4. Собираем финальный результат
-        result += thoughtsHtml;
-        
-        // Обрабатываем каждую часть в правильном порядке
+        // 3. Собираем финальный результат, обрабатывая каждую часть в правильном порядке
         parts.forEach(part => {
             if (part.type === 'text') {
                 // Обрабатываем ** для жирного текста
                 const processedText = this.processBoldText(part.content);
                 result += `<div class="ai-response">${processedText}</div>`;
+            } else if (part.type === 'thoughts') {
+                // Добавляем СВЕРНУТЫЙ блок мыслей с уникальным ID
+                result += `
+                    <div class="ai-thoughts-container" data-thoughts-id="${part.id}">
+                        <div class="ai-thoughts-header">
+                            <span class="ai-thoughts-label-main">Мысли ИИ ${part.id > 1 ? part.id : ''}</span>
+                            <button class="ai-thoughts-toggle" aria-label="Развернуть мысли">+</button>
+                        </div>
+                        <div class="ai-thoughts-content collapsed">${this.escapeHtml(part.content)}
+                        </div>
+                    </div>
+                `;
             } else if (part.type === 'code') {
                 // Добавляем блок кода
                 result += this.createCodeBlockHTML(part.language, part.content);

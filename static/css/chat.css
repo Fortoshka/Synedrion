@@ -145,9 +145,23 @@ body{
     padding: 15px;
     margin-bottom: 15px;
     border-radius: 18px;
-    animation: fadeIn 0.3s ease;
     word-wrap: break-word;
     line-height: 1.5;
+}
+
+.message.new-message {
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .message.user {
@@ -1903,6 +1917,23 @@ transition: none !important;
 .ai-loading-progress-bar {
 animation: none !important;
 /* НЕ отключаем transition - он нужен для плавного движения! */
+}
+
+/* Анимация для нового текста в потоковом режиме */
+.new-content {
+    opacity: 1 !important;
+    transform: translateY(0) !important;
+    transition: opacity 0.5s ease, transform 0.5s ease !important;
+}
+
+/* Начальное состояние для элементов с анимацией */
+.ai-response, .ai-code-block, .ai-thoughts-container {
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+/* Плавное расширение контейнера при добавлении контента */
+.message-content {
+    transition: all 0.3s ease;
 }
 
 /* Кнопки для блоков кода */
