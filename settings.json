@@ -7,11 +7,6 @@
       "url": "z-ai/glm-4.5-air:free"
     },
     {
-      "id": 9,
-      "name": "Kwaipilot: KAT-Coder-Pro V1",
-      "url": "kwaipilot/kat-coder-pro:free"
-    },
-    {
       "id": 2,
       "name": "Deepseek: Deepseek R1 0528 Qwen3 8B",
       "url": "deepseek/deepseek-r1-0528-qwen3-8b:free"

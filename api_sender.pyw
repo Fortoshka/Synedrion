@@ -137,18 +137,12 @@ def save_history(response : list = [{}], progress = 0):
             if open_count > 0:
                 text += "[/CODE]"
 
-    history_file["messages"].append({
-        'id': ID,
-        'sender': 'ai',
-        'sender_model': MODEL_NAME,
-        "reasoning": reasoning,
-        "answer": answer,
-        'text':  text,
-        'timestamp': datetime.now().isoformat()
-    })
+    history_file["messages"][-1]["reasoning"] = reasoning
+    history_file["messages"][-1]["answer"] = answer
+    history_file["messages"][-1]['text'] = text
+    history_file["messages"][-1]['timestamp'] = datetime.now().isoformat()
     with open(HISTORY_PATH, "w", encoding="utf-8") as f:
         json.dump(history_file, f, ensure_ascii=False, indent=2)
-    del history_file.get("messages", [{}])[-1]
     return True
 
 def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
@@ -168,7 +162,7 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
     if MODEL in TOOL_SUPPORTED_MODELS:
         payload["tools"] = TOOLS_USE
     if REASONING_MAX>0:
-        payload["reasoning"] = {"max_tokens": REASONING_MAX }
+        payload["reasoning"] = {"max_tokens": REASONING_MAX}
     else:
         payload["reasoning"] = {"exclude": True} 
 
@@ -183,6 +177,7 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
     tool_calls_buffer = {}
     start_time_reasoning = time.time()
     end_time_reasoning = start_time_reasoning
+
     try:
         logging.info("Отправка сообщения в API...")
         if tools_send == 0 and error_count == 0:
@@ -193,12 +188,14 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
         try:
             response.raise_for_status()
             
-            for line in response.iter_lines(1024):
+            for line in response.iter_lines(256):
                 if line:
                     line_str = line.decode('utf-8')
                     stripped_line = line_str.strip()
 
                     if line_str.startswith(":"):
+                        if result[0] and error_count == 0 and tools_send == 0:
+                            save_history(progress=80)
                         logging.debug("Игнорируем служебную строку: OPENROUTER PROCESSING")
                         continue 
 
@@ -346,7 +343,7 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
             result[-1]["fatal_error_message"] = error_answer
             time.sleep(1)
             return result
-        logging.warning(f"Пробуем еще раз так как может быт ьврмемная ошибка")
+        logging.warning(f"Пробуем еще раз так как может быть временная ошибка")
         result_retry = send_message_api(history=history, error_count=(error_count + 1), tools_send=tools_send)
         return result_retry
 
@@ -386,17 +383,28 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
 
 def main():
     try:
+        history_file["messages"].append({
+            'id': ID,
+            'sender': 'ai',
+            'sender_model': MODEL_NAME,
+            "reasoning": "",
+            "answer": "",
+            'text':  "",
+            'timestamp': datetime.now().isoformat()
+        })
+        history_file["PID"] = os.getpid()
         save_history(progress=25)
         history = load_history()
         global result
         result = []
+        
         answer = send_message_api(history=history)
         if answer[-1].get("fatal_error", ""):
             pass
         elif answer:
             time.sleep(1)
             if len(result) == 1 and answer[-1].get('content','') == "":
-                answer[-1]['content'] += "[RESPONSE]\n*треск сверчков*\n[/RESPONSE]"
+                answer[-1]['content'] += "*треск сверчков*"
             logging.info(f"История сохранена.")
             logging.info("Ответ сохранён в истории.")
         else:
@@ -413,6 +421,8 @@ def main():
         with open(HISTORY_PATH, "w", encoding="utf-8") as f:
             json.dump(history_file, f, ensure_ascii=False, indent=2)
     finally:
+        history_file["PID"] = None
+        save_history(result)
         logging.info("api_sender.pyw завершил работу!")
 
 

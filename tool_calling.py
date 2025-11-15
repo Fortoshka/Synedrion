@@ -1,6 +1,7 @@
 from datetime import datetime
 import random
 import re
+import threading
 from bs4 import BeautifulSoup
 import json
 import logging
@@ -192,8 +193,7 @@ def summarize_url(url: str, max_chars: int = 64_000):
     (обрезая по max_chars для LLM).
     """
     try:
-        response = requests.get(url, timeout=10, headers={
-        })
+        response = requests.get(url, timeout=10, headers={})
         response.raise_for_status()
     except Exception as e:
         return {"error": f"Failed to load URL: {e}"}
@@ -222,17 +222,27 @@ def summarize_url(url: str, max_chars: int = 64_000):
 
     return {
         "title": title,
+        "url": url,
         "length": len(clean_text),
         "content": clean_text
     }
 
 def search_web(query: str, num_results=5):
-    url = "https://app.zenserp.com/api/v2/search"
+    search_web_url = "https://app.zenserp.com/api/v2/search"
     results = []
+    threads = [] 
+    thread_results = {}
+    thread_results_lock = threading.Lock()
     page = 0
     keys = ["bc4166d0-bcf0-11f0-bd27-15f0f972b3f0","a5eccbc0-bd2b-11f0-9490-859bf46addc8","20966990-bd2c-11f0-b5c1-31bbe782f6fc","48565440-bd2c-11f0-9395-df2f5d1ff18c","7577b6b0-bd2c-11f0-864b-6be3e5a4bd40",
             "989c20a0-bd2c-11f0-864c-4ff4f022ba18","bad6a800-bd2c-11f0-856d-1736cd4f883d","ee1545c0-bd2c-11f0-adf6-8500a34c424a","16254d90-bd2d-11f0-8474-b1d20fcc8901","419bc3b0-bd2d-11f0-be34-d1974f318cee"
             ]
+    def summarize_url_threading(url, max_chars=8000):
+        """Функция для вызова в потоке"""
+        logging.info(f"Вызов функции:summarize_url с аргументами {url}")
+        website_info = summarize_url(url=url, max_chars=max_chars)
+        with thread_results_lock:
+            thread_results[url] = website_info
 
     while len(results) <= num_results:
         page += 1
@@ -246,14 +256,27 @@ def search_web(query: str, num_results=5):
         )
         headers = {"apikey": random.choice(keys)}
         logging.info(f"Получаем сайты с {page} страницы")
-        data = requests.get(url, headers=headers, params=params).json().get("organic", [])
+        data = requests.get(search_web_url, headers=headers, params=params).json().get("organic", [])
+        
+        for item in data:
+            thread = threading.Thread(target=summarize_url_threading, args=(item.get("url"),))
+            threads.append(thread)
+            thread.start()
+            
+        for thread in threads:
+            thread.join()
 
         for item in data:
-            logging.info(f"Вызов функции:summarize_url с аргументами {item.get('url')}")
-            website_info = summarize_url(url=item["url"], max_chars=8000)
-            if website_info.get("title", ""):
-                results.append(website_info)
-            
+            url = item.get("url")
+            if url in thread_results:
+                website_info = thread_results[url]
+                if website_info.get("title", ""):
+                    results.append(website_info)
+                    logging.info(f"Добавлен результат для {url}. Всего результатов: {len(results)}")
+            else:
+                logging.warning(f"Результат для {url} не был получен (возможно, ошибка в потоке).")   
+        thread_results.clear()
+
     logging.info(f"Получен ответ от {len(results)}")
     return results
 
