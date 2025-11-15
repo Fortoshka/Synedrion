@@ -1,3 +1,4 @@
+from copy import deepcopy
 from datetime import datetime
 import http
 import re
@@ -39,6 +40,7 @@ logging.info(f"Файл конфигурации {CONFIG_PATH} удалён по
 
 HISTORY_PATH = os.path.join(os.path.dirname(__file__), "chats", CONFIG["chat"])
 history_file = load_json(HISTORY_PATH)
+history_cache = json.loads(json.dumps(history_file))
 
 USER_SYSTEM_PROMPT = history_file.get("system_prompt",'')
 MODEL = history_file.get("model")
@@ -46,10 +48,10 @@ MODEL_NAME = history_file.get("models_name", "")
 REASONING_MAX = history_file.get("reasoning_len")
 KYES_PATH ="api_keys.json"
 if not os.path.exists(KYES_PATH): KYES_PATH ="api_keys.example.json"
-api_keys_p = load_json(KYES_PATH)
+api_keys_p = load_json(os.path.join(os.path.dirname(__file__), KYES_PATH))
 
 ID = int(time.time() * 1000)  # Уникальный ID
-TOOL_SUPPORTED_MODELS = load_json("tool_supported_models.json")
+TOOL_SUPPORTED_MODELS = load_json(os.path.join(os.path.dirname(__file__),"models.json"))["tools"]
 
 BASE_SYSTEM_PROMPT = open(os.path.join(os.path.dirname(__file__), "config", "system_promt.txt"), "r", encoding="utf-8").read()
 if not history_file.get("search_web", "123"):
@@ -75,16 +77,6 @@ def get_api_keys():
         logging.error(f"Ошибка при получении ключа API: {e}", exc_info=EXC_INFO)
         time.sleep(1)
         return get_api_keys()
-
-def simulate_progress_real_time(stop_event, max_percent=80, total_time=35):
-    """Линейный прогресс от 0 до max_percent с мгновенной остановкой."""
-    start_time = time.time()
-    progress = 0
-    while not stop_event.is_set():
-        elapsed = time.time() - start_time
-        progress =  (elapsed / (elapsed + total_time/2)) * max_percent
-        save_history({}, 'generating', progress=min(max_percent-3, progress))
-        time.sleep(1)
 
 def load_history():
     """Загружает историю диалога из файла"""
@@ -171,12 +163,14 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
         "time_reasoning": 0, 
         "content": "",
         "tool_calls": [],
-        "fatal_error": False
+        "fatal_error": False,
+        "usage" : {}
     })
 
     tool_calls_buffer = {}
     start_time_reasoning = time.time()
     end_time_reasoning = start_time_reasoning
+    last_save_time = start_time_reasoning
 
     try:
         logging.info("Отправка сообщения в API...")
@@ -194,7 +188,7 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
                     stripped_line = line_str.strip()
 
                     if line_str.startswith(":"):
-                        if result[0] and error_count == 0 and tools_send == 0:
+                        if result[0] and error_count == 0 and tools_send == 0 and not result[0]["content"] and not result[0]["reasoning"]:
                             save_history(progress=80)
                         logging.debug("Игнорируем служебную строку: OPENROUTER PROCESSING")
                         continue 
@@ -249,14 +243,17 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
 
                             content = delta.get("content", "") 
                             reasoning = delta.get("reasoning", "") 
+                            usage = parsed.get("usage", "")
                             if reasoning:
                                 end_time_reasoning = time.time()
                                 result[-1]["time_reasoning"] = round(end_time_reasoning - start_time_reasoning, 3)
                                 result[-1]["reasoning"] += reasoning
                             if content:
                                 result[-1]["content"] += content
-                            
-                            save_history(response=result)
+                            if usage:
+                                result[-1]["usage"] = usage
+                            if time.time() - last_save_time >= 0.5:
+                                save_history(response=result)
 
                         except json.JSONDecodeError as je:
                             logging.warning(f"Не удалось распарсить chunk: {data_part}, ошибка: {je}")
@@ -287,18 +284,13 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
             save_history(response=temp_result)
 
         follow_message = process_tool_calls(
-            result,
-            messages=history,
-            tools=TOOLS_USE,
-            headers=headers,
-            api_url=API_URL,
-            model=MODEL
+            result=result,
+            messages=history
         )
 
         if follow_message:
             follow_send = send_message_api(history=follow_message, tools_send=1) 
             save_history(response=follow_send)
-            logging.info("Ответ после вызова инструментов сохранён.")
             return follow_send
         
         result[0]["fatal_error"] = False
@@ -341,7 +333,6 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
         if error_count >= 3: 
             result[0]["fatal_error"] = True
             result[-1]["fatal_error_message"] = error_answer
-            time.sleep(1)
             return result
         logging.warning(f"Пробуем еще раз так как может быть временная ошибка")
         result_retry = send_message_api(history=history, error_count=(error_count + 1), tools_send=tools_send)
@@ -371,6 +362,7 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
         
         if result[0].get("fatal_error") and error_count == 0:
             error_answer = result[-1].get("fatal_error_message", "Произошла ошибка.")
+            del history_file["messages"][-1]
             history_file["messages"].append({
                 'id': int(time.time() * 1000),  # Уникальный ID
                 'sender': 'error',
@@ -378,8 +370,7 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
                 'text': error_answer,
                 'timestamp': datetime.now().isoformat()
             })
-            with open(HISTORY_PATH, "w", encoding="utf-8") as f:
-                json.dump(history_file, f, ensure_ascii=False, indent=2)
+        
 
 def main():
     try:
@@ -402,7 +393,7 @@ def main():
         if answer[-1].get("fatal_error", ""):
             pass
         elif answer:
-            time.sleep(1)
+            time.sleep(0.25)
             if len(result) == 1 and answer[-1].get('content','') == "":
                 answer[-1]['content'] += "*треск сверчков*"
             logging.info(f"История сохранена.")
@@ -411,6 +402,7 @@ def main():
             logging.warning("Ответ не был получен.")
     except Exception as e:
         logging.error(f"Ошибка в коде: {e}", exc_info=EXC_INFO)
+        del history_file["messages"][-1]
         history_file["messages"].append({
             'id': int(time.time() * 1000),  # Уникальный ID
             'sender': 'error',
@@ -418,11 +410,12 @@ def main():
             'text': "⚠️При обработке запроса возникла ошибка⚠️\nЭто могло произойти из-за:\n❌Неработоспособности ключей API\n❌Ошибки в коде программы\n\nЕсли Вам срочно необходима помощь с решением проблемы, обратитесь в тех поддержку (смотрите раздел 'О приложении'). В противном случае попробуйте создать новый чат, перегенерировать текущий, или дождаться решения проблемы в новом обновлении.",
             'timestamp': datetime.now().isoformat()
         })
+    finally:
+        for use in result:
+            logging.info(use.get("usage"))
+        history_file["PID"] = None
         with open(HISTORY_PATH, "w", encoding="utf-8") as f:
             json.dump(history_file, f, ensure_ascii=False, indent=2)
-    finally:
-        history_file["PID"] = None
-        save_history(result)
         logging.info("api_sender.pyw завершил работу!")
 
 

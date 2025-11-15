@@ -35,6 +35,16 @@
       "id": 13,
       "name": "DeepSeek: R1 Distill Llama 70B",
       "url": "deepseek/deepseek-r1-distill-llama-70b:free"
+    },
+    {
+      "id": 14,
+      "name": "Sherlock Think Alpha",
+      "url": "openrouter/sherlock-think-alpha"
+    },
+    {
+      "id": 15,
+      "name": "openrouter/sherlock-dash-alpha",
+      "url": "openrouter/sherlock-dash-alpha"
     }
   ],
   "theme": "dark"
