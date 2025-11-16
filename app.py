@@ -402,7 +402,7 @@ def create_request():
         # 2. Запускаем api_sender.py
         try:
             # Запускаем скрипт в отдельном процессе
-            # subprocess.Popen([sys.executable, 'api_sender_test.pyw'], 
+            # subprocess.Popen([sys.executable, 'api_sender_council.pyw'], 
             subprocess.Popen([sys.executable, 'api_sender.pyw'],                  
                            stdout=subprocess.PIPE, 
                            stderr=subprocess.PIPE)

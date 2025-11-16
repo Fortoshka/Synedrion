@@ -42,8 +42,7 @@ history_file = load_json(HISTORY_PATH)
 history_cache = json.loads(json.dumps(history_file))
 
 USER_SYSTEM_PROMPT = history_file.get("system_prompt",'')
-MODEL = history_file.get("model")
-MODEL_NAME = history_file.get("models_name", "")
+MODELS = history_file.get("models")
 REASONING_MAX = history_file.get("reasoning_len")
 KYES_PATH ="api_keys.json"
 if not os.path.exists(KYES_PATH): KYES_PATH ="api_keys.example.json"
@@ -82,7 +81,8 @@ def load_history():
     history = [{"role": "system", "content": f"{BASE_SYSTEM_PROMPT} \n [USERPROMPT] \n{USER_SYSTEM_PROMPT} \n[/USERPROMPT] \n[/INSTRUCTION]"}]
     for message in history_file["messages"]:
         if message["sender"] == "ai":
-            history.append({"role": "assistant", "reasoning": message.get("reasoning", ""), "content": message.get("answer", "")})
+            model = f"Ответ от модели " + message.get("sender_model", "")
+            history.append({"role": "assistant", "reasoning": message.get("reasoning", ""), "content": message.get("answer", "") + (f"{model: >{10+len(model)}}")})
         elif message["sender"] == "user":
             history.append({"role": "user", "content": message.get("text", "")})
             if message.get("filename", ''): 
@@ -90,12 +90,10 @@ def load_history():
                 for file_num in range(len(message.get("filename", []))):
                     filename += f"{file_num + 1} - {message['filename'][file_num]}\n    {message['file'][file_num]}\n"
                 history[-1]["content"] += f"\n[FILE]{filename[:-2]}[/FILE]"
-        elif message["sender"] == "error":
-            history.pop()
     logging.info(f"История диалога загружена. Всего сообщений: {len(history)}")
     return history
 
-def save_history(response : list = [{}], progress = 0):
+def save_history(response : list = [{}], model: str = "" ,progress = 0):
     """Сохраняет историю диалога в файл"""
     text = ""
     answer = ""
@@ -128,6 +126,7 @@ def save_history(response : list = [{}], progress = 0):
             if open_count > 0:
                 text += "[/CODE]"
 
+    history_file["messages"][-1]["model"] = model
     history_file["messages"][-1]["reasoning"] = reasoning
     history_file["messages"][-1]["answer"] = answer
     history_file["messages"][-1]['text'] = text
@@ -136,21 +135,21 @@ def save_history(response : list = [{}], progress = 0):
         json.dump(history_file, f, ensure_ascii=False, indent=2)
     return True
 
-def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
+def send_message_api(history: list, model: str = "", tools_send: int = 0, error_count: int = 0 ):
     api_data = get_api_keys()
     headers = {
         "Authorization": f"Bearer {api_data['key']}",
         "Content-Type": "application/json"
     }
     payload = {
-        "model": MODEL, 
+        "model": model, 
         "transforms": ["middle-out"],
         "messages": history,
         "tool_choice": "auto",
         "usage": {"include": True},
         "stream": True,
     }
-    if MODEL in TOOL_SUPPORTED_MODELS:
+    if model in TOOL_SUPPORTED_MODELS:
         payload["tools"] = TOOLS_USE
     if REASONING_MAX>0:
         payload["reasoning"] = {"max_tokens": REASONING_MAX}
@@ -366,7 +365,7 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
             history_file["messages"].append({
                 'id': int(time.time() * 1000),  # Уникальный ID
                 'sender': 'error',
-                'sender_model': MODEL_NAME,
+                'sender_model': model,
                 'text': error_answer,
                 'timestamp': datetime.now().isoformat()
             })
@@ -374,47 +373,57 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
 
 def main():
     try:
-        history_file["messages"].append({
-            'id': ID,
-            'sender': 'ai',
-            'sender_model': MODEL_NAME,
-            "reasoning": "",
-            "answer": "",
-            'text':  "",
-            'timestamp': datetime.now().isoformat()
-        })
-        history_file["PID"] = os.getpid()
-        save_history(progress=25)
-        history = load_history()
         global result
         result = []
-        answer = send_message_api(history=history)
-        if answer[-1].get("fatal_error", ""):
-            pass
-        elif answer:
-            time.sleep(0.25)
-            if len(result) == 1 and answer[-1].get('content','') == "":
-                answer[-1]['content'] += "*треск сверчков*"
-            logging.info(f"История сохранена.")
-            logging.info("Ответ сохранён в истории.")
-        else:
-            logging.warning("Ответ не был получен.")
-    except Exception as e:
-        logging.error(f"Ошибка в коде: {e}", exc_info=EXC_INFO)
-        del history_file["messages"][-1]
-        history_file["messages"].append({
-            'id': int(time.time() * 1000),  # Уникальный ID
-            'sender': 'error',
-            'sender_model': MODEL_NAME,
-            'text': "⚠️При обработке запроса возникла ошибка⚠️\nЭто могло произойти из-за:\n❌Неработоспособности ключей API\n❌Ошибки в коде программы\n\nЕсли Вам срочно необходима помощь с решением проблемы, обратитесь в тех поддержку (смотрите раздел 'О приложении'). В противном случае попробуйте создать новый чат, перегенерировать текущий, или дождаться решения проблемы в новом обновлении.",
-            'timestamp': datetime.now().isoformat()
-        })
+        for model in MODELS:
+            global history_file
+            history_file = load_json(HISTORY_PATH)
+            global ID
+            ID = int(time.time() * 1000)  # Уникальный ID
+            result = []
+            history_file["messages"].append({
+                'id': ID,
+                'sender': 'ai',
+                'sender_model': model,
+                "reasoning": "",
+                "answer": "",
+                'text':  "",
+                'timestamp': datetime.now().isoformat()
+            })
+            save_history(progress=25)
+            time.sleep(1)
+            history_file["PID"] = os.getpid()
+            logging.info(model)
+            try:
+                history = load_history()
+                answer = send_message_api(history=history, model=model)
+                if answer[-1].get("fatal_error", ""):
+                    raise
+                elif answer:
+                    time.sleep(0.25)
+                    if len(result) == 1 and answer[-1].get('content','') == "":
+                        answer[-1]['content'] += "*треск сверчков*"
+                    logging.info(f"История сохранена.")
+                    logging.info("Ответ сохранён в истории.")
+                else:
+                    logging.warning("Ответ не был получен.")
+            except Exception as e:
+                logging.error(f"Ошибка в коде: {e}", exc_info=EXC_INFO)
+                del history_file["messages"][-1]
+                history_file["messages"].append({
+                    'id': int(time.time() * 1000),  # Уникальный ID
+                    'sender': 'error',
+                    'sender_model': model,
+                    'text': "⚠️При обработке запроса возникла ошибка⚠️\nЭто могло произойти из-за:\n❌Неработоспособности ключей API\n❌Ошибки в коде программы\n\nЕсли Вам срочно необходима помощь с решением проблемы, обратитесь в тех поддержку (смотрите раздел 'О приложении'). В противном случае попробуйте создать новый чат, перегенерировать текущий, или дождаться решения проблемы в новом обновлении.",
+                    'timestamp': datetime.now().isoformat()
+                })
+            finally:
+                for use in result:
+                    logging.info(use.get("usage"))
+                history_file["PID"] = None
+                with open(HISTORY_PATH, "w", encoding="utf-8") as f:
+                    json.dump(history_file, f, ensure_ascii=False, indent=2)
     finally:
-        for use in result:
-            logging.info(use.get("usage"))
-        history_file["PID"] = None
-        with open(HISTORY_PATH, "w", encoding="utf-8") as f:
-            json.dump(history_file, f, ensure_ascii=False, indent=2)
         logging.info("api_sender.pyw завершил работу!")
 
 

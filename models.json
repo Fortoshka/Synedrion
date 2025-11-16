@@ -21,7 +21,8 @@
   ],
   "models": {
     "Sherlock Dash Alpha": {
-      "id": "openrouter/sherlock-dash-alpha",
+      "id": 0,
+      "id_model": "openrouter/sherlock-dash-alpha",
       "supported_parameters": [
         "max_tokens",
         "response_format",
@@ -37,7 +38,8 @@
       ]
     },
     "Sherlock Think Alpha": {
-      "id": "openrouter/sherlock-think-alpha",
+      "id": 1,
+      "id_model": "openrouter/sherlock-think-alpha",
       "supported_parameters": [
         "include_reasoning",
         "max_tokens",
@@ -55,7 +57,8 @@
       ]
     },
     "Kwaipilot: KAT-Coder-Pro V1 (free)": {
-      "id": "kwaipilot/kat-coder-pro:free",
+      "id": 6,
+      "id_model": "kwaipilot/kat-coder-pro:free",
       "supported_parameters": [
         "frequency_penalty",
         "max_tokens",
@@ -78,7 +81,8 @@
       ]
     },
     "NVIDIA: Nemotron Nano 12B 2 VL (free)": {
-      "id": "nvidia/nemotron-nano-12b-v2-vl:free",
+      "id": 13,
+      "id_model": "nvidia/nemotron-nano-12b-v2-vl:free",
       "supported_parameters": [
         "include_reasoning",
         "reasoning",
@@ -94,7 +98,8 @@
       ]
     },
     "Tongyi DeepResearch 30B A3B (free)": {
-      "id": "alibaba/tongyi-deepresearch-30b-a3b:free",
+      "id": 51,
+      "id_model": "alibaba/tongyi-deepresearch-30b-a3b:free",
       "supported_parameters": [
         "frequency_penalty",
         "include_reasoning",
@@ -119,7 +124,8 @@
       ]
     },
     "Meituan: LongCat Flash Chat (free)": {
-      "id": "meituan/longcat-flash-chat:free",
+      "id": 58,
+      "id_model": "meituan/longcat-flash-chat:free",
       "supported_parameters": [
         "frequency_penalty",
         "max_tokens",
@@ -142,7 +148,8 @@
       ]
     },
     "NVIDIA: Nemotron Nano 9B V2 (free)": {
-      "id": "nvidia/nemotron-nano-9b-v2:free",
+      "id": 62,
+      "id_model": "nvidia/nemotron-nano-9b-v2:free",
       "supported_parameters": [
         "include_reasoning",
         "reasoning",
@@ -158,7 +165,8 @@
       ]
     },
     "DeepSeek: DeepSeek V3.1 (free)": {
-      "id": "deepseek/deepseek-chat-v3.1:free",
+      "id": 75,
+      "id_model": "deepseek/deepseek-chat-v3.1:free",
       "supported_parameters": [
         "include_reasoning",
         "max_tokens",
@@ -174,7 +182,8 @@
       ]
     },
     "OpenAI: gpt-oss-20b (free)": {
-      "id": "openai/gpt-oss-20b:free",
+      "id": 90,
+      "id_model": "openai/gpt-oss-20b:free",
       "supported_parameters": [
         "frequency_penalty",
         "include_reasoning",
@@ -199,7 +208,8 @@
       ]
     },
     "Z.AI: GLM 4.5 Air (free)": {
-      "id": "z-ai/glm-4.5-air:free",
+      "id": 97,
+      "id_model": "z-ai/glm-4.5-air:free",
       "supported_parameters": [
         "frequency_penalty",
         "include_reasoning",
@@ -224,7 +234,8 @@
       ]
     },
     "Qwen: Qwen3 Coder 480B A35B (free)": {
-      "id": "qwen/qwen3-coder:free",
+      "id": 101,
+      "id_model": "qwen/qwen3-coder:free",
       "supported_parameters": [
         "frequency_penalty",
         "max_tokens",
@@ -245,7 +256,8 @@
       ]
     },
     "MoonshotAI: Kimi K2 0711 (free)": {
-      "id": "moonshotai/kimi-k2:free",
+      "id": 108,
+      "id_model": "moonshotai/kimi-k2:free",
       "supported_parameters": [
         "max_tokens",
         "seed",
@@ -259,7 +271,8 @@
       ]
     },
     "Venice: Uncensored (free)": {
-      "id": "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
+      "id": 113,
+      "id_model": "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
       "supported_parameters": [
         "frequency_penalty",
         "max_tokens",
@@ -278,7 +291,8 @@
       ]
     },
     "Google: Gemma 3n 2B (free)": {
-      "id": "google/gemma-3n-e2b-it:free",
+      "id": 115,
+      "id_model": "google/gemma-3n-e2b-it:free",
       "supported_parameters": [
         "frequency_penalty",
         "max_tokens",
@@ -296,7 +310,8 @@
       ]
     },
     "TNG: DeepSeek R1T2 Chimera (free)": {
-      "id": "tngtech/deepseek-r1t2-chimera:free",
+      "id": 117,
+      "id_model": "tngtech/deepseek-r1t2-chimera:free",
       "supported_parameters": [
         "frequency_penalty",
         "include_reasoning",
@@ -317,7 +332,8 @@
       ]
     },
     "Mistral: Mistral Small 3.2 24B (free)": {
-      "id": "mistralai/mistral-small-3.2-24b-instruct:free",
+      "id": 125,
+      "id_model": "mistralai/mistral-small-3.2-24b-instruct:free",
       "supported_parameters": [
         "frequency_penalty",
         "max_tokens",
@@ -340,7 +356,8 @@
       ]
     },
     "DeepSeek: DeepSeek R1 0528 Qwen3 8B (free)": {
-      "id": "deepseek/deepseek-r1-0528-qwen3-8b:free",
+      "id": 139,
+      "id_model": "deepseek/deepseek-r1-0528-qwen3-8b:free",
       "supported_parameters": [
         "frequency_penalty",
         "include_reasoning",
@@ -361,7 +378,8 @@
       ]
     },
     "DeepSeek: R1 0528 (free)": {
-      "id": "deepseek/deepseek-r1-0528:free",
+      "id": 141,
+      "id_model": "deepseek/deepseek-r1-0528:free",
       "supported_parameters": [
         "frequency_penalty",
         "include_reasoning",
@@ -382,7 +400,8 @@
       ]
     },
     "Google: Gemma 3n 4B (free)": {
-      "id": "google/gemma-3n-e4b-it:free",
+      "id": 146,
+      "id_model": "google/gemma-3n-e4b-it:free",
       "supported_parameters": [
         "frequency_penalty",
         "max_tokens",
@@ -400,7 +419,8 @@
       ]
     },
     "Qwen: Qwen3 4B (free)": {
-      "id": "qwen/qwen3-4b:free",
+      "id": 158,
+      "id_model": "qwen/qwen3-4b:free",
       "supported_parameters": [
         "frequency_penalty",
         "include_reasoning",
@@ -423,7 +443,8 @@
       ]
     },
     "Qwen: Qwen3 30B A3B (free)": {
-      "id": "qwen/qwen3-30b-a3b:free",
+      "id": 161,
+      "id_model": "qwen/qwen3-30b-a3b:free",
       "supported_parameters": [
         "frequency_penalty",
         "include_reasoning",
@@ -444,7 +465,8 @@
       ]
     },
     "Qwen: Qwen3 14B (free)": {
-      "id": "qwen/qwen3-14b:free",
+      "id": 164,
+      "id_model": "qwen/qwen3-14b:free",
       "supported_parameters": [
         "frequency_penalty",
         "include_reasoning",
@@ -465,7 +487,8 @@
       ]
     },
     "Qwen: Qwen3 235B A22B (free)": {
-      "id": "qwen/qwen3-235b-a22b:free",
+      "id": 167,
+      "id_model": "qwen/qwen3-235b-a22b:free",
       "supported_parameters": [
         "frequency_penalty",
         "include_reasoning",
@@ -490,7 +513,8 @@
       ]
     },
     "TNG: DeepSeek R1T Chimera (free)": {
-      "id": "tngtech/deepseek-r1t-chimera:free",
+      "id": 169,
+      "id_model": "tngtech/deepseek-r1t-chimera:free",
       "supported_parameters": [
         "frequency_penalty",
         "include_reasoning",
@@ -511,7 +535,8 @@
       ]
     },
     "Microsoft: MAI DS R1 (free)": {
-      "id": "microsoft/mai-ds-r1:free",
+      "id": 171,
+      "id_model": "microsoft/mai-ds-r1:free",
       "supported_parameters": [
         "frequency_penalty",
         "include_reasoning",
@@ -532,7 +557,8 @@
       ]
     },
     "ArliAI: QwQ 32B RpR v1 (free)": {
-      "id": "arliai/qwq-32b-arliai-rpr-v1:free",
+      "id": 182,
+      "id_model": "arliai/qwq-32b-arliai-rpr-v1:free",
       "supported_parameters": [
         "frequency_penalty",
         "include_reasoning",
@@ -553,7 +579,8 @@
       ]
     },
     "Agentica: Deepcoder 14B Preview (free)": {
-      "id": "agentica-org/deepcoder-14b-preview:free",
+      "id": 184,
+      "id_model": "agentica-org/deepcoder-14b-preview:free",
       "supported_parameters": [
         "frequency_penalty",
         "include_reasoning",
@@ -574,7 +601,8 @@
       ]
     },
     "Qwen: Qwen2.5 VL 32B Instruct (free)": {
-      "id": "qwen/qwen2.5-vl-32b-instruct:free",
+      "id": 191,
+      "id_model": "qwen/qwen2.5-vl-32b-instruct:free",
       "supported_parameters": [
         "frequency_penalty",
         "max_tokens",
@@ -594,7 +622,8 @@
       ]
     },
     "DeepSeek: DeepSeek V3 0324 (free)": {
-      "id": "deepseek/deepseek-chat-v3-0324:free",
+      "id": 193,
+      "id_model": "deepseek/deepseek-chat-v3-0324:free",
       "supported_parameters": [
         "frequency_penalty",
         "max_tokens",
@@ -615,7 +644,8 @@
       ]
     },
     "Mistral: Mistral Small 3.1 24B (free)": {
-      "id": "mistralai/mistral-small-3.1-24b-instruct:free",
+      "id": 196,
+      "id_model": "mistralai/mistral-small-3.1-24b-instruct:free",
       "supported_parameters": [
         "frequency_penalty",
         "max_tokens",
@@ -639,7 +669,8 @@
       ]
     },
     "Google: Gemma 3 4B (free)": {
-      "id": "google/gemma-3-4b-it:free",
+      "id": 199,
+      "id_model": "google/gemma-3-4b-it:free",
       "supported_parameters": [
         "max_tokens",
         "response_format",
@@ -656,7 +687,8 @@
       ]
     },
     "Google: Gemma 3 12B (free)": {
-      "id": "google/gemma-3-12b-it:free",
+      "id": 201,
+      "id_model": "google/gemma-3-12b-it:free",
       "supported_parameters": [
         "max_tokens",
         "seed",
@@ -671,7 +703,8 @@
       ]
     },
     "Google: Gemma 3 27B (free)": {
-      "id": "google/gemma-3-27b-it:free",
+      "id": 206,
+      "id_model": "google/gemma-3-27b-it:free",
       "supported_parameters": [
         "frequency_penalty",
         "max_tokens",
@@ -693,7 +726,8 @@
       ]
     },
     "Mistral: Mistral Small 3 (free)": {
-      "id": "mistralai/mistral-small-24b-instruct-2501:free",
+      "id": 231,
+      "id_model": "mistralai/mistral-small-24b-instruct-2501:free",
       "supported_parameters": [
         "frequency_penalty",
         "max_tokens",
@@ -712,7 +746,8 @@
       ]
     },
     "DeepSeek: R1 Distill Llama 70B (free)": {
-      "id": "deepseek/deepseek-r1-distill-llama-70b:free",
+      "id": 237,
+      "id_model": "deepseek/deepseek-r1-distill-llama-70b:free",
       "supported_parameters": [
         "frequency_penalty",
         "include_reasoning",
@@ -735,7 +770,8 @@
       ]
     },
     "DeepSeek: R1 (free)": {
-      "id": "deepseek/deepseek-r1:free",
+      "id": 239,
+      "id_model": "deepseek/deepseek-r1:free",
       "supported_parameters": [
         "frequency_penalty",
         "include_reasoning",
@@ -758,7 +794,8 @@
       ]
     },
     "Google: Gemini 2.0 Flash Experimental (free)": {
-      "id": "google/gemini-2.0-flash-exp:free",
+      "id": 249,
+      "id_model": "google/gemini-2.0-flash-exp:free",
       "supported_parameters": [
         "max_tokens",
         "response_format",
@@ -777,7 +814,8 @@
       ]
     },
     "Meta: Llama 3.3 70B Instruct (free)": {
-      "id": "meta-llama/llama-3.3-70b-instruct:free",
+      "id": 250,
+      "id_model": "meta-llama/llama-3.3-70b-instruct:free",
       "supported_parameters": [
         "frequency_penalty",
         "logit_bias",
@@ -799,7 +837,8 @@
       ]
     },
     "Qwen2.5 Coder 32B Instruct (free)": {
-      "id": "qwen/qwen-2.5-coder-32b-instruct:free",
+      "id": 259,
+      "id_model": "qwen/qwen-2.5-coder-32b-instruct:free",
       "supported_parameters": [
         "frequency_penalty",
         "max_tokens",
@@ -818,7 +857,8 @@
       ]
     },
     "Meta: Llama 3.2 3B Instruct (free)": {
-      "id": "meta-llama/llama-3.2-3b-instruct:free",
+      "id": 276,
+      "id_model": "meta-llama/llama-3.2-3b-instruct:free",
       "supported_parameters": [
         "frequency_penalty",
         "max_tokens",
@@ -835,7 +875,8 @@
       ]
     },
     "Qwen2.5 72B Instruct (free)": {
-      "id": "qwen/qwen-2.5-72b-instruct:free",
+      "id": 279,
+      "id_model": "qwen/qwen-2.5-72b-instruct:free",
       "supported_parameters": [
         "frequency_penalty",
         "max_tokens",
@@ -854,7 +895,8 @@
       ]
     },
     "Nous: Hermes 3 405B Instruct (free)": {
-      "id": "nousresearch/hermes-3-llama-3.1-405b:free",
+      "id": 289,
+      "id_model": "nousresearch/hermes-3-llama-3.1-405b:free",
       "supported_parameters": [
         "frequency_penalty",
         "max_tokens",
@@ -871,7 +913,8 @@
       ]
     },
     "Mistral: Mistral Nemo (free)": {
-      "id": "mistralai/mistral-nemo:free",
+      "id": 298,
+      "id_model": "mistralai/mistral-nemo:free",
       "supported_parameters": [
         "frequency_penalty",
         "max_tokens",
@@ -890,7 +933,8 @@
       ]
     },
     "Mistral: Mistral 7B Instruct (free)": {
-      "id": "mistralai/mistral-7b-instruct:free",
+      "id": 307,
+      "id_model": "mistralai/mistral-7b-instruct:free",
       "supported_parameters": [
         "frequency_penalty",
         "max_tokens",

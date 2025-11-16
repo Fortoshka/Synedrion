@@ -9,14 +9,16 @@ models = {"tools": [],
           "model_id_by_name": {},
           "model_name_by_id": {}}
 
-response = requests.get(url, headers=headers)
+response = requests.get(url, headers=headers).json()["data"]
 
-for model_data in response.json()["data"]:
+for model_data_id in range(len(response)):
+    model_data = response[model_data_id]
     if model_data["pricing"]["prompt"] == "0":
         model_name = model_data["name"]
         model_id = model_data["id"]
         models["models"][model_name] = {
-            "id":  model_id,
+            "id": model_data_id,
+            "id_model":  model_id,
             "supported_parameters": model_data["supported_parameters"],
             "description": model_data["description"],
             "context_length": model_data["context_length"],
