@@ -249,8 +249,9 @@ def summarize_url(url: str, max_chars: int = 64_000):
 
 def search_web(query: str, num_results: int = 5):
     search_web_url = "https://app.zenserp.com/api/v2/search"
-    results = []
+    results = {query : []}
     page = 0
+    counter_error = 0
     keys = [
         "bc4166d0-bcf0-11f0-bd27-15f0f972b3f0", "a5eccbc0-bd2b-11f0-9490-859bf46addc8",
         "20966990-bd2c-11f0-b5c1-31bbe782f6fc", "48565440-bd2c-11f0-9395-df2f5d1ff18c",
@@ -263,14 +264,14 @@ def search_web(query: str, num_results: int = 5):
         # logging.info(f"Вызов функции: summarize_url с аргументами {url}")
         return summarize_url(url=url, max_chars=max_chars)
 
-    while len(results) < num_results:
+    while len(results[query]) < num_results:
         page += 1
         params = (
             ("q", query),
             ("device", "desktop"),
             ("gl", "RU"),
             ("hl", "ru"),
-            ("num", "100"),
+            ("num", "10"),
             ("page", page)
         )
         headers = {"apikey": random.choice(keys)}
@@ -281,9 +282,11 @@ def search_web(query: str, num_results: int = 5):
             response.raise_for_status()
             data = response.json().get("organic", [])
         except Exception as e:
-            logging.error(f"Ошибка получения страницы {page}: {e}")
+            if page >= 0: page -= 1
+            counter_error += 1
+            if counter_error >= 10: break 
+            logging.error(f"Ошибка получения страницы {page}: {e} при помощи ключа {headers}")
             continue
-
         with ThreadPoolExecutor(max_workers=50) as executor:
             futures = [executor.submit(worker, item.get("url")) for item in data]
 
@@ -291,18 +294,18 @@ def search_web(query: str, num_results: int = 5):
                 try:
                     website_info = future.result(timeout=20) 
                     if website_info and website_info.get("title", ""):
-                        results.append(website_info)
+                        results[query].append(website_info)
                         url = "unknown"  
-                        # logging.info(f"Добавлен результат. Всего: {len(results)}")
-                        if len(results) >= num_results:
+                        logging.info(f"Добавлен результат. Всего: {len(results)}")
+                        if len(results[query]) >= num_results:
                             break 
                 except Exception as e:
                     logging.error(f"Ошибка в summarize: {e}")
 
-        if len(results) >= num_results:
+        if len(results[query]) >= num_results:
             break
 
-    logging.info(f"search_web завершён: {len(results)} результатов")
+    logging.info(f"search_web завершён: {len(results[query])} результатов")
     return results
 
 def get_exchange_rate(base: str = "USD", target: str = "RUB") -> dict:
@@ -508,6 +511,7 @@ def execute_tool_call(call):
         "tool_call_id": call_id,
         "content": json.dumps(tool_result, ensure_ascii=False)
     }
+
 def process_tool_calls(result, messages):
     """
     Универсальная обработка вызовов инструментов от модели (теперь параллельно).

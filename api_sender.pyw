@@ -70,9 +70,14 @@ def get_api_keys():
         logging.info("Запрос нового API ключа...")
         data = requests.post(p_url, headers=p_headers, json={"name": "name"}, timeout=30).json()
         data["p_api"] = p_api
-        logging.info(f"Новый API ключ получен: {data.get('data', {}).get('hash', 'нет hash')}")
-        return data
+        if data.get("key", ""):
+            logging.info(f"Новый API ключ получен: {data.get('data', {}).get('hash', 'нет hash')}")
+            return data
+        raise
     except requests.exceptions.RequestException as e:
+        api_keys_p.append(api_keys_p.pop(0))
+        with open(KYES_PATH, "w", encoding="utf-8") as f:
+            json.dump(api_keys_p, f, ensure_ascii=False, indent=4)
         logging.error(f"Ошибка при получении ключа API: {e}", exc_info=EXC_INFO)
         time.sleep(1)
         return get_api_keys()
@@ -146,6 +151,7 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
         "model": MODEL, 
         "transforms": ["middle-out"],
         "messages": history,
+        "temperature": 0.7,
         "tool_choice": "auto",
         "usage": {"include": True},
         "stream": True,
@@ -181,7 +187,7 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
         try:
             response.raise_for_status()
             
-            for line in response.iter_lines(256):
+            for line in response.iter_lines(4096):
                 if line:
                     line_str = line.decode('utf-8')
                     stripped_line = line_str.strip()
@@ -251,7 +257,7 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
                                 result[-1]["content"] += content
                             if usage:
                                 result[-1]["usage"] = usage
-                            if time.time() - last_save_time >= 0.1:
+                            if time.time() - last_save_time >= 0.25:
                                 last_save_time = time.time()
                                 save_history(response=result)
 
