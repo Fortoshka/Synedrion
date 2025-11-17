@@ -77,6 +77,19 @@ body{
     text-overflow: ellipsis;
 }
 
+/* Текст ожидания инструментов ([TOOL_CALLING]) */
+.tool-calling-text {
+    margin-top: 8px;
+    font-size: 1.05rem;
+    font-weight: 600;
+    background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+    background-size: 200% 100%;
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: loadingTextShine 2.5s ease-in-out infinite;
+}
+
 .chat-item-date {
     font-size: 0.8rem;
     color: var(--text-secondary);
@@ -196,6 +209,14 @@ body{
 
 .message .text {
     font-size: 1rem;
+    text-align: left;
+}
+
+.message-content,
+.message-content .ai-response,
+.message-content .ai-code-block,
+.message-content .ai-thoughts-container {
+    text-align: left;
 }
 
 /* Область ввода */
@@ -1128,112 +1149,30 @@ body{
     background: rgba(220, 38, 38, 1);
 }
 
-/* Мысли ИИ (THOUGHTS) */
-.ai-thoughts {
-    font-size: 0.85rem;
-    opacity: 0.8;
-    margin-bottom: 8px;
-    padding: 8px 12px;
-    background: rgba(255, 255, 255, 0.1);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    font-style: italic;
-    border-radius: 10px;
-}
-
-.ai-thoughts-label {
-    font-weight: 600;
-    color: var(--secondary-color);
-    margin-right: 5px;
-}
-
 /* Основной ответ ИИ */
 .ai-response {
     font-size: 1rem;
     line-height: 1.5;
-}
-
-/* Сообщение ИИ с мыслями */
-.message.ai.with-thoughts {
     padding: 0;
 }
 
-.message.ai.with-thoughts .message-content {
-    padding: 15px;
-}
-
-/* Адаптивность для мыслей */
-@media (max-width: 480px) {
-    .ai-thoughts {
-        font-size: 0.75rem;
-        padding: 6px 10px;
-    }
-    
-    .ai-response {
-        font-size: 0.9rem;
-    }
-}
-
-.message.ai.with-thoughts {
-    padding: 0;
-    background: rgba(255, 255, 255, 0.15);
-}
-
-.message.ai.with-thoughts .message-content {
-    padding: 0;
-}
-
-.message.ai.with-thoughts .sender {
-    padding: 10px 15px 5px 15px;
-}
-
-/* Мысли ИИ (THOUGHTS) */
+/* Старый блок мыслей (плоский, используется в processThoughtsAndResponseTags) */
 .ai-thoughts {
     font-size: 0.85rem;
     opacity: 0.85;
-    padding: 12px 15px 12px 15px;
+    padding: 12px 15px;
     background: rgba(255, 255, 255, 0.1);
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     font-style: italic;
     line-height: 1.4;
+    border-radius: 10px;
+    margin-bottom: 8px;
 }
 
 .ai-thoughts-label {
     font-weight: 600;
     color: var(--secondary-color);
     margin-right: 5px;
-}
-
-/* Основной ответ ИИ */
-.ai-response {
-    font-size: 1rem;
-    line-height: 1.5;
-    padding: 15px;
-}
-
-/* Кнопка перегенерации для сообщений с мыслями */
-.message.ai.with-thoughts .regenerate-btn {
-    position: absolute;
-    bottom: 5px;
-    right: 5px;
-    background: rgba(255, 255, 255, 0.2);
-    border: none;
-    border-radius: 15px;
-    padding: 5px 10px;
-    color: var(--text-color);
-    font-size: 0.8rem;
-    cursor: pointer;
-    opacity: 0;
-    transition: opacity 0.2s ease, background 0.2s ease;
-    backdrop-filter: blur(5px);
-    z-index: 1;
-}
-
-.message.ai.with-thoughts:hover .regenerate-btn {
-    opacity: 1;
-}
-
-.message.ai.with-thoughts .regenerate-btn:hover {
-    background: rgba(255, 255, 255, 0.3);
 }
 
 /* Адаптивность */
@@ -1245,11 +1184,6 @@ body{
     
     .ai-response {
         font-size: 0.9rem;
-        padding: 12px;
-    }
-    
-    .message.ai.with-thoughts .sender {
-        padding: 8px 12px 4px 12px;
     }
 }
 
@@ -1563,6 +1497,7 @@ body{
     justify-content: space-between;
     align-items: center;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px 12px 0 0; /* скругляем верхние углы, чтобы при скрытом контенте блок не казался прямоугольным */
 }
 
 .ai-thoughts-label-main {
@@ -1597,6 +1532,7 @@ body{
     opacity: 0.9;
     line-height: 1.5;
     white-space: pre-wrap; /* Сохраняем форматирование, но позволяя переносы */
+    border-radius: 0 0 12px 12px; /* нижние скруглённые углы */
 }
 
 .ai-thoughts-content.collapsed {
@@ -1736,20 +1672,10 @@ body{
 .ai-loading-container {
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: flex-start; /* текст и прогресс выравниваем по левому краю внутри сообщения */
     justify-content: center;
-    padding: 20px;
-    text-align: center;
-    width: 100%;
-}
-
-.ai-loading-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-    text-align: center;
+    padding: 15px;
+    text-align: left;
     width: 100%;
 }
 
@@ -1919,16 +1845,28 @@ animation: none !important;
 /* НЕ отключаем transition - он нужен для плавного движения! */
 }
 
-/* Анимация для нового текста в потоковом режиме */
+/* Анимация для нового текста в потоковом режиме (зарезервировано для совместимости) */
 .new-content {
-    opacity: 1 !important;
-    transform: translateY(0) !important;
-    transition: opacity 0.5s ease, transform 0.5s ease !important;
+    display: inline;
 }
 
-/* Начальное состояние для элементов с анимацией */
-.ai-response, .ai-code-block, .ai-thoughts-container {
-    transition: opacity 0.3s ease, transform 0.3s ease;
+/* Анимация только для НОВОЙ части текста */
+.new-text-part {
+    display: inline;
+    animation: newTextFadeIn 0.4s ease;
+}
+
+@keyframes newTextFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+        color: var(--primary-color);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+        color: var(--text-color);
+    }
 }
 
 /* Плавное расширение контейнера при добавлении контента */

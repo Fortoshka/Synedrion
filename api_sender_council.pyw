@@ -107,7 +107,7 @@ def save_history(response : list = [{}], model: str = "" ,progress = 0):
                 text = f"[LOADING:{1+progress}]Создание запроса...[/LOADING]"
                 break
             if reasoning:
-                text += f"[THOUGHTS: {time_reasoning}]\n{reasoning}\n[/THOUGHTS]\n{answer}" 
+                text += f"[THOUGHTS: {round(time_reasoning)}]\n{reasoning}\n[/THOUGHTS]\n{answer}" 
             else:
                 text = answer + " "
                 
@@ -276,7 +276,7 @@ def send_message_api(history: list, model: str = "", tools_send: int = 0, error_
         
         if result[-1]["tool_calls"]:
             temp_result = result.copy()
-            temp_result[-1] = {"content": temp_result[-1].get("content", "") + "\nОжидание ответа инструментов ",
+            temp_result[-1] = {"content": temp_result[-1].get("content", "") + "\n[TOOL_CALLING]Ожидание ответа инструментов...[/TOOL_CALLING]",
                                    "reasoning": temp_result[-1].get("reasoning", ""),
                                    "tool_calls": temp_result[-1].get("tool_calls", ""),
                                    "fatal_error": False}
