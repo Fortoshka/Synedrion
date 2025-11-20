@@ -32,14 +32,9 @@
       "url": "google/gemma-3-27b-it:free"
     },
     {
-      "id": 14,
-      "name": "Sherlock Think Alpha",
-      "url": "openrouter/sherlock-think-alpha"
-    },
-    {
-      "id": 15,
-      "name": "openrouter/sherlock-dash-alpha",
-      "url": "openrouter/sherlock-dash-alpha"
+      "id": 13,
+      "name": "xAI: Grok 4.1 Fast",
+      "url": "x-ai/grok-4.1-fast"
     }
   ],
   "theme": "dark"

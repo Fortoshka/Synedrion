@@ -30,7 +30,7 @@ def load_json(path: str):
 
 
 API_URL = "https://openrouter.ai/api/v1/chat/completions"
-EXC_INFO = False # Подробное логирование ошибок
+EXC_INFO = True # Подробное логирование ошибок
 
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), "config", "request.json")
 CONFIG = load_json(CONFIG_PATH)
@@ -39,18 +39,18 @@ logging.info(f"Файл конфигурации {CONFIG_PATH} удалён по
 
 HISTORY_PATH = os.path.join(os.path.dirname(__file__), "chats", CONFIG["chat"])
 history_file = load_json(HISTORY_PATH)
-history_cache = json.loads(json.dumps(history_file))
 
 USER_SYSTEM_PROMPT = history_file.get("system_prompt",'')
 MODEL = history_file.get("model")
-MODEL_NAME = history_file.get("models_name", "")
 REASONING_MAX = history_file.get("reasoning_len")
 KYES_PATH ="api_keys.json"
 if not os.path.exists(KYES_PATH): KYES_PATH ="api_keys.example.json"
 api_keys_p = load_json(os.path.join(os.path.dirname(__file__), KYES_PATH))
 
 ID = int(time.time() * 1000)  # Уникальный ID
-TOOL_SUPPORTED_MODELS = load_json(os.path.join(os.path.dirname(__file__),"models.json"))["tools"]
+MODELS = load_json(os.path.join(os.path.dirname(__file__), "models.json"))
+TOOL_SUPPORTED_MODELS = MODELS["tools"]
+MODEL_NAME = history_file.get("models_name", "") or MODELS.get("model_name_by_id", {}).get(MODEL, "")
 
 BASE_SYSTEM_PROMPT = open(os.path.join(os.path.dirname(__file__), "config", "system_promt.txt"), "r", encoding="utf-8").read()
 if not history_file.get("search_web", "123"):
@@ -87,7 +87,7 @@ def load_history():
     history = [{"role": "system", "content": f"{BASE_SYSTEM_PROMPT} \n [USERPROMPT] \n{USER_SYSTEM_PROMPT} \n[/USERPROMPT] \n[/INSTRUCTION]"}]
     for message in history_file["messages"]:
         if message["sender"] == "ai":
-            history.append({"role": "assistant", "reasoning": message.get("reasoning", ""), "content": message.get("answer", "")})
+            history.append({"role": "assistant", "reasoning": message.get("reasoning", ""), "content": message.get("answer", ""), "reasoning_details": message.get("reasoning_details", [])})
         elif message["sender"] == "user":
             history.append({"role": "user", "content": message.get("text", "")})
             if message.get("filename", ''): 
@@ -98,6 +98,7 @@ def load_history():
         elif message["sender"] == "error":
             history.pop()
     logging.info(f"История диалога загружена. Всего сообщений: {len(history)}")
+    
     return history
 
 def save_history(response : list = [{}], progress = 0):
@@ -105,18 +106,27 @@ def save_history(response : list = [{}], progress = 0):
     text = ""
     answer = ""
     reasoning = ""
+    reasoning_details = []
     if response is not None:
         for message in response:
             answer = message.get('content', '')
             reasoning = message.get('reasoning', '').strip()
+            reasoning_details = message.get("reasoning_details", [])
             time_reasoning = message.get("time_reasoning", 0)
             if answer == "" and reasoning == "" and progress:
                 text = f"[LOADING:{1+progress}]Создание запроса...[/LOADING]"
                 break
-            if reasoning:
+            elif reasoning:
                 text += f"[THOUGHTS: {round(time_reasoning)}]\n{reasoning}\n[/THOUGHTS]\n{answer}" 
             else:
                 text = answer + " "
+
+            if reasoning_details:
+                logging.info(reasoning_details)
+                for reasoning_details_index in reasoning_details:
+                    if reasoning_details_index not in history_file["messages"][-1]["reasoning_details"]:
+                        history_file["messages"][-1]["reasoning_details"].append(reasoning_details_index)
+                        logging.info(history_file["messages"][-1]["reasoning_details"])
                 
             open_matches = list(re.finditer(r'\[CODE', answer))
             close_matches = list(re.finditer(r'\[/CODE\]', answer))
@@ -152,7 +162,6 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
         "transforms": ["middle-out"],
         "messages": history,
         "temperature": 0.7,
-        "tool_choice": "auto",
         "usage": {"include": True},
         "stream": True,
     }
@@ -165,6 +174,7 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
 
     result.append({
         "reasoning": "",
+        "reasoning_details": [],
         "time_reasoning": 0, 
         "content": "",
         "tool_calls": [],
@@ -173,6 +183,7 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
     })
 
     tool_calls_buffer = {}
+    reasoning_details_buffer = {}
     start_time_reasoning = time.time()
     end_time_reasoning = start_time_reasoning
     last_save_time = start_time_reasoning
@@ -195,6 +206,7 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
                     if line_str.startswith(":"):
                         if result[0] and error_count == 0 and tools_send == 0 and not result[0]["content"] and not result[0]["reasoning"]:
                             save_history(progress=80)
+                            result[0]["reasoning"] += " "
                         logging.debug("Игнорируем служебную строку: OPENROUTER PROCESSING")
                         continue 
 
@@ -246,6 +258,22 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
                                         if args_chunk:
                                             tool_calls_buffer[index]["function"]["arguments"] += args_chunk
 
+                            reasoning_details = delta.get("reasoning_details", [])
+                            if reasoning_details:
+                                for detail in reasoning_details:
+                                    index = detail.get("index", 0)
+                                    
+                                    if index not in reasoning_details_buffer:
+                                        reasoning_details_buffer[index] = {}
+                                    
+                                    for key_reasoning_details in detail.keys():
+                                        detail_chunk = detail.get(key_reasoning_details, "")
+                                        if reasoning_details_buffer[index].get(key_reasoning_details, ""):
+                                            if not detail_chunk == reasoning_details_buffer[index].get(key_reasoning_details, ""):
+                                                reasoning_details_buffer[index][key_reasoning_details] += detail_chunk
+                                        else:
+                                            reasoning_details_buffer[index][key_reasoning_details] = detail_chunk
+                            
                             content = delta.get("content", "") 
                             reasoning = delta.get("reasoning", "") 
                             usage = parsed.get("usage", "")
@@ -275,7 +303,8 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
                 requests.exceptions.HTTPError) as stream_error:
             logging.error(f"Ошибка при чтении потока: {stream_error}", exc_info=EXC_INFO)
             raise requests.exceptions.RequestException(f"Ошибка при чтении потока: {stream_error}") from stream_error
-        
+                                    
+        result[-1]["reasoning_details"] = [reasoning_details_buffer[k] for k in sorted(reasoning_details_buffer.keys())]
         result[-1]["tool_calls"] = [tool_calls_buffer[k] for k in sorted(tool_calls_buffer.keys())]
         logging.info(f"Ответ от API успешно получен. {result[-1]}")
         
@@ -306,6 +335,7 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
         err = str(e)
         error_answer = f"Ошибка сети при запросе: {err}\n"
         response_obj = e.response 
+        logging.info(f"Сообщения с ошибкой {response.json()}")
         if response_obj is not None:
             try:
                 response_json = response_obj.json()
@@ -380,18 +410,19 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
 
 def main():
     try:
+        history = load_history()
         history_file["messages"].append({
             'id': ID,
             'sender': 'ai',
             'sender_model': MODEL_NAME,
             "reasoning": "",
+            "reasoning_details": [],
             "answer": "",
             'text':  "",
             'timestamp': datetime.now().isoformat()
         })
         history_file["PID"] = os.getpid()
         save_history(progress=25)
-        history = load_history()
         global result
         result = []
         answer = send_message_api(history=history)

@@ -14,7 +14,7 @@ response = requests.get(url, headers=headers).json()["data"]
 for model_data_id in range(len(response)):
     model_data = response[model_data_id]
     if model_data["pricing"]["prompt"] == "0":
-        model_name = model_data["name"]
+        model_name = model_data["name"].replace("(free)", "")
         model_id = model_data["id"]
         models["models"][model_name] = {
             "id": model_data_id,
