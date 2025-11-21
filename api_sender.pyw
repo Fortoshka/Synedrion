@@ -122,11 +122,9 @@ def save_history(response : list = [{}], progress = 0):
                 text = answer + " "
 
             if reasoning_details:
-                logging.info(reasoning_details)
                 for reasoning_details_index in reasoning_details:
                     if reasoning_details_index not in history_file["messages"][-1]["reasoning_details"]:
                         history_file["messages"][-1]["reasoning_details"].append(reasoning_details_index)
-                        logging.info(history_file["messages"][-1]["reasoning_details"])
                 
             open_matches = list(re.finditer(r'\[CODE', answer))
             close_matches = list(re.finditer(r'\[/CODE\]', answer))
@@ -198,7 +196,7 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
         try:
             response.raise_for_status()
             
-            for line in response.iter_lines(4096):
+            for line in response.iter_lines(8192):
                 if line:
                     line_str = line.decode('utf-8')
                     stripped_line = line_str.strip()
@@ -313,9 +311,13 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
         if result[-1]["tool_calls"]:
             temp_result = result.copy()
             temp_result[-1] = {"content": temp_result[-1].get("content", "") + "\n[TOOL_CALLING]Ожидание ответа инструментов...[/TOOL_CALLING]",
-                                   "reasoning": temp_result[-1].get("reasoning", ""),
-                                   "tool_calls": temp_result[-1].get("tool_calls", ""),
-                                   "fatal_error": False}
+                               "reasoning": temp_result[-1].get("reasoning", ""),
+                               "tool_calls": temp_result[-1].get("tool_calls", ""),
+                               "reasoning_details": temp_result[-1].get("reasoning_details", []),
+                               "time_reasoning": temp_result[-1].get("time_reasoning", 0), 
+                               "usage" : temp_result[-1].get("usage", {}),
+                               "fatal_error": False
+                               }
             save_history(response=temp_result)
 
         follow_message = process_tool_calls(
@@ -323,10 +325,7 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
             messages=history
         )
 
-        if follow_message:
-            follow_send = send_message_api(history=follow_message, tools_send=1) 
-            save_history(response=follow_send)
-            return follow_send
+        if follow_message: return send_message_api(history=follow_message, tools_send=1) 
         
         result[0]["fatal_error"] = False
         return result

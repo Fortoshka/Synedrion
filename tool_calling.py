@@ -257,14 +257,20 @@ def search_web(query: str, num_results: int = 5):
         "20966990-bd2c-11f0-b5c1-31bbe782f6fc", "48565440-bd2c-11f0-9395-df2f5d1ff18c",
         "7577b6b0-bd2c-11f0-864b-6be3e5a4bd40", "989c20a0-bd2c-11f0-864c-4ff4f022ba18",
         "bad6a800-bd2c-11f0-856d-1736cd4f883d", "ee1545c0-bd2c-11f0-adf6-8500a34c424a",
-        "16254d90-bd2d-11f0-8474-b1d20fcc8901", "419bc3b0-bd2d-11f0-be34-d1974f318cee"
+        "16254d90-bd2d-11f0-8474-b1d20fcc8901", "419bc3b0-bd2d-11f0-be34-d1974f318cee",
+        "67a12560-c6e6-11f0-a8df-edf4d99f823e", "72c62d40-c6e9-11f0-b9cc-f39279dd0508",
+        "9db21650-c6e9-11f0-a5ac-55469b4e058f","b300b0c0-c6e9-11f0-8664-37a02625ae60",
+        "cffa8400-c6e9-11f0-8c19-0d7c8a10692e", "eb4e9c50-c6e9-11f0-8de3-f3588fe4a9ec",
+        "05e33e80-c6ea-11f0-9f92-c157fb6f8fa4", "1a6cf5f0-c6ea-11f0-b7c7-e9199785d742",
+        "346a4d10-c6ea-11f0-9925-f57421911298", "49d8c6c0-c6ea-11f0-abe5-670adb0335e9",
+        "64aa6790-c6ea-11f0-b800-6bb6f5a9d9d6", "7d3748c0-c6ea-11f0-9352-b74c6837fe25"
     ]
 
     def worker(url, max_chars=16000):
-        # logging.info(f"Вызов функции: summarize_url с аргументами {url}")
+        logging.info(f"Вызов функции: summarize_url с аргументами {url}")
         return summarize_url(url=url, max_chars=max_chars)
 
-    while len(results[query]) < num_results:
+    while len(results[query]) <= num_results:
         page += 1
         params = (
             ("q", query),
@@ -275,7 +281,7 @@ def search_web(query: str, num_results: int = 5):
             ("page", page)
         )
         headers = {"apikey": random.choice(keys)}
-        # logging.info(f"Получаем сайты с {page} страницы")
+        logging.info(f"Получаем сайты с {page} страницы")
 
         try:
             response = requests.get(search_web_url, headers=headers, params=params, timeout=10)
@@ -285,7 +291,7 @@ def search_web(query: str, num_results: int = 5):
             if page >= 0: page -= 1
             counter_error += 1
             if counter_error >= 10: break 
-            logging.error(f"Ошибка получения страницы {page}: {e} при помощи ключа {headers}")
+            logging.error(f"Ошибка получения страницы {page}: {e} при помощи ключа {headers}. Подробная ответ {response.json()}")
             continue
         with ThreadPoolExecutor(max_workers=50) as executor:
             futures = [executor.submit(worker, item.get("url")) for item in data]
@@ -295,15 +301,9 @@ def search_web(query: str, num_results: int = 5):
                     website_info = future.result(timeout=20) 
                     if website_info and website_info.get("title", ""):
                         results[query].append(website_info)
-                        url = "unknown"  
-                        logging.info(f"Добавлен результат. Всего: {len(results)}")
-                        if len(results[query]) >= num_results:
-                            break 
                 except Exception as e:
                     logging.error(f"Ошибка в summarize: {e}")
-
-        if len(results[query]) >= num_results:
-            break
+            logging.info(f"Всего результатов: {len(results[query])}")
 
     logging.info(f"search_web завершён: {len(results[query])} результатов")
     return results
