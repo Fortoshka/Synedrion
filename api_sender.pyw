@@ -1,7 +1,10 @@
 from datetime import datetime
 import http
+import random
 import re
+import signal
 import time
+import pexpect
 import requests
 import json
 import os
@@ -30,7 +33,7 @@ def load_json(path: str):
 
 
 API_URL = "https://openrouter.ai/api/v1/chat/completions"
-EXC_INFO = True # Подробное логирование ошибок
+EXC_INFO = False # Подробное логирование ошибок
 
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), "config", "request.json")
 CONFIG = load_json(CONFIG_PATH)
@@ -48,9 +51,9 @@ if not os.path.exists(KYES_PATH): KYES_PATH ="api_keys.example.json"
 api_keys_p = load_json(os.path.join(os.path.dirname(__file__), KYES_PATH))
 
 ID = int(time.time() * 1000)  # Уникальный ID
-MODELS = load_json(os.path.join(os.path.dirname(__file__), "models.json"))
-TOOL_SUPPORTED_MODELS = MODELS["tools"]
-MODEL_NAME = history_file.get("models_name", "") or MODELS.get("model_name_by_id", {}).get(MODEL, "")
+MODELS_NAMES = load_json(os.path.join(os.path.dirname(__file__), "models.json"))
+TOOL_SUPPORTED_MODELS = MODELS_NAMES["tools"]
+MODEL_NAME = history_file.get("models_name", "") or MODELS_NAMES.get("model_name_by_id", {}).get(MODEL, "")
 
 BASE_SYSTEM_PROMPT = open(os.path.join(os.path.dirname(__file__), "config", "system_promt.txt"), "r", encoding="utf-8").read()
 if not history_file.get("search_web", "123"):
@@ -60,8 +63,10 @@ else:
 
 
 def get_api_keys():
+    if api_keys_p.get("key", ""):
+        return random.choice(api_keys_p["key"])
     p_url = "https://openrouter.ai/api/v1/keys"
-    p_api = api_keys_p[0]
+    p_api = api_keys_p.get("p_key", api_keys_p)[0]
     p_headers = {
         "Authorization": f"Bearer {p_api}",
         "Content-Type": "application/json"
@@ -75,7 +80,7 @@ def get_api_keys():
             return data
         raise
     except requests.exceptions.RequestException as e:
-        api_keys_p.append(api_keys_p.pop(0))
+        api_keys_p.get("p_key", api_keys_p).append(api_keys_p.get("p_key", api_keys_p).pop(0))
         with open(KYES_PATH, "w", encoding="utf-8") as f:
             json.dump(api_keys_p, f, ensure_ascii=False, indent=4)
         logging.error(f"Ошибка при получении ключа API: {e}", exc_info=EXC_INFO)
@@ -98,7 +103,6 @@ def load_history():
         elif message["sender"] == "error":
             history.pop()
     logging.info(f"История диалога загружена. Всего сообщений: {len(history)}")
-    
     return history
 
 def save_history(response : list = [{}], progress = 0):
@@ -166,7 +170,7 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
     if MODEL in TOOL_SUPPORTED_MODELS:
         payload["tools"] = TOOLS_USE
     if REASONING_MAX>0:
-        payload["reasoning"] = {"max_tokens": REASONING_MAX}
+        payload["reasoning"] = {"max_tokens": REASONING_MAX * 100}
     else:
         payload["reasoning"] = {"exclude": True} 
 
@@ -358,7 +362,7 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
                     reset_time_unix = datetime.utcfromtimestamp(int(reset_ts) / 1000) - datetime.utcfromtimestamp(now_utc)
                     logging.error(f"Сброс лимита произойдет: {reset_time_utc}. Ключ заработает через {reset_time_unix}")
             finally:
-                api_keys_p.append(api_keys_p.pop(0))
+                api_keys_p.get("p_key", api_keys_p).append(api_keys_p.get("p_key", api_keys_p).pop(0))
                 with open(KYES_PATH, "w", encoding="utf-8") as f:
                     json.dump(api_keys_p, f, ensure_ascii=False, indent=4)
         elif "502" in err:
@@ -445,6 +449,8 @@ def main():
             'text': "⚠️При обработке запроса возникла ошибка⚠️\nЭто могло произойти из-за:\n❌Неработоспособности ключей API\n❌Ошибки в коде программы\n\nЕсли Вам срочно необходима помощь с решением проблемы, обратитесь в тех поддержку (смотрите раздел 'О приложении'). В противном случае попробуйте создать новый чат, перегенерировать текущий, или дождаться решения проблемы в новом обновлении.",
             'timestamp': datetime.now().isoformat()
         })
+    except KeyboardInterrupt:
+        logging.info(f"api_sender.pyw звершина принудительно!")
     finally:
         for use in result:
             logging.info(use.get("usage"))
