@@ -1,14 +1,11 @@
 from datetime import datetime
 from pathlib import Path
 import random
-import threading
-from concurrent.futures import ThreadPoolExecutor
-from concurrent.futures import as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup
 import json
 import logging
-import time
-import uuid
 from typing import Dict, Any, List
 import json
 import os
@@ -209,42 +206,59 @@ def get_weather(city=None, lat=None, lon=None) -> dict:
     
 def summarize_url(url: str, max_chars: int = 64_000):
     """
-    Загружает страницу по URL, извлекает текст без HTML и возвращает его
-    (обрезая по max_chars для LLM).
+    Загружает страницу по URL, извлекает текст + ССЫЛКИ + ИЗОБРАЖЕНИЯ.
     """
     try:
         response = requests.get(url, timeout=10, headers={})
         response.raise_for_status()
     except Exception as e:
+        logging.error(f"❌ Не успешный вызов функции: summarize_url с аргументами {url}")
         return {"error": f"Failed to load URL: {e}"}
-
-    # Парсим HTML
     soup = BeautifulSoup(response.text, "html.parser")
-
     # Удаляем скрипты/стили
     for tag in soup(["script", "style", "noscript"]):
         tag.decompose()
-
-    # Основной текст
+    # ✅ ОСНОВНОЙ ТЕКСТ (без изменений)
     text = soup.get_text(separator="\n")
-
-    # Чистим лишние пробелы и пустые строки
     lines = [line.strip() for line in text.splitlines()]
-    lines = [line for line in lines if line]  # удаляем пустые строки
+    lines = [line for line in lines if line]
     clean_text = "\n".join(lines)
-
-    # Заголовок страницы
     title = soup.title.string.strip() if soup.title and soup.title.string else ""
-
-    # Ограничение длины
     if len(clean_text) > max_chars:
         clean_text = clean_text[:max_chars]
-
+    # ✅ НОВОЕ: СОБИРАЕМ ССЫЛКИ (ТОП-20 уникальных)
+    links = set()
+    for a in soup.find_all('a', href=True):
+        href = a['href']
+        # Absolute URL + фильтр
+        full_url = urljoin(url, href)
+        parsed = urlparse(full_url)
+        if (parsed.scheme in ('http', 'https') and 
+            not parsed.path.startswith('#') and  # Нет anchors
+            not href.startswith(('mailto:', 'tel:', 'javascript:'))):
+            links.add(full_url)
+    
+    links_list = list(links)[:20]  # Топ-20
+    # ✅ НОВОЕ: СОБИРАЕМ ИЗОБРАЖЕНИЯ (ТОП-20 уникальных)
+    images = set()
+    for img in soup.find_all('img', src=True):
+        src = img['src']
+        full_src = urljoin(url, src)
+        parsed = urlparse(full_src)
+        if parsed.scheme in ('http', 'https'):
+            images.add(full_src)
+    
+    images_list = list(images)[:20]  # Топ-20
+    logging.info(f"✅ Успешный вызов функции: summarize_url с аргументами {url}")
     return {
         "title": title,
         "url": url,
         "length": len(clean_text),
-        "content": clean_text
+        "content": clean_text,
+        "links": links_list,          # ✅ Массив ссылок
+        "images": images_list,        # ✅ Массив изображений
+        "links_count": len(links_list),
+        "images_count": len(images_list)
     }
 
 def search_web(query: str, num_results: int = 5):
@@ -259,7 +273,7 @@ def search_web(query: str, num_results: int = 5):
         "bad6a800-bd2c-11f0-856d-1736cd4f883d", "ee1545c0-bd2c-11f0-adf6-8500a34c424a",
         "16254d90-bd2d-11f0-8474-b1d20fcc8901", "419bc3b0-bd2d-11f0-be34-d1974f318cee",
         "67a12560-c6e6-11f0-a8df-edf4d99f823e", "72c62d40-c6e9-11f0-b9cc-f39279dd0508",
-        "9db21650-c6e9-11f0-a5ac-55469b4e058f","b300b0c0-c6e9-11f0-8664-37a02625ae60",
+        "9db21650-c6e9-11f0-a5ac-55469b4e058f", "b300b0c0-c6e9-11f0-8664-37a02625ae60",
         "cffa8400-c6e9-11f0-8c19-0d7c8a10692e", "eb4e9c50-c6e9-11f0-8de3-f3588fe4a9ec",
         "05e33e80-c6ea-11f0-9f92-c157fb6f8fa4", "1a6cf5f0-c6ea-11f0-b7c7-e9199785d742",
         "346a4d10-c6ea-11f0-9925-f57421911298", "49d8c6c0-c6ea-11f0-abe5-670adb0335e9",
@@ -267,7 +281,6 @@ def search_web(query: str, num_results: int = 5):
     ]
 
     def worker(url, max_chars=16000):
-        logging.info(f"Вызов функции: summarize_url с аргументами {url}")
         return summarize_url(url=url, max_chars=max_chars)
 
     while len(results[query]) <= num_results:
@@ -516,33 +529,31 @@ def process_tool_calls(result, messages):
     """
     Универсальная обработка вызовов инструментов от модели (теперь параллельно).
     """
-    choice_msg = {"role": "assistant", "reasoning": "", "content": ""}
+    choice_msg = {"role": "assistant", "reasoning": "", "content": "", "reasoning_details": []}
     for message in result:
         choice_msg["reasoning"] = message.get("reasoning", "")
         choice_msg["content"] = message.get("content", "")
+        choice_msg["reasoning_details"] = message.get("reasoning_details", [])
     
     tool_calls = result[-1].get("tool_calls")
     if not tool_calls:
         logging.info("Модель не вызвала инструмент.")
         return []
-    # Параллельное выполнение всех tool_calls
+
     tools_messages = []
     with ThreadPoolExecutor(max_workers=len(tool_calls)) as executor:
-        # Submit все задачи в исходном порядке
         futures = [executor.submit(execute_tool_call, call) for call in tool_calls]
         
-        # Собираем результаты в том же порядке (синхронно ждём все)
         for future in futures:
             try:
                 tool_msg = future.result()
                 tools_messages.append(tool_msg)
             except Exception as e:
                 logging.error(f"Ошибка в future: {e}")
-                # Опционально: добавить сообщение об ошибке
                 tools_messages.append({
                     "role": "tool",
-                    "tool_call_id": "unknown",
-                  "content": json.dumps({"error": f"Future error: {e}"})
+                    "tool_call_id": futures[future].get("id"),
+                    "content": json.dumps({"error": f"Future error: {e}"})
                 })
                 
     return messages + [choice_msg] + tools_messages

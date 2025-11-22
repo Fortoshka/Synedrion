@@ -9,8 +9,9 @@ models = {"tools": [],
           "model_id_by_name": {},
           "model_name_by_id": {}}
 
-response = requests.get(url, headers=headers).json()["data"]
-
+response = requests.get(url, headers=headers)
+response.raise_for_status()
+response = response.json()["data"]
 for model_data_id in range(len(response)):
     model_data = response[model_data_id]
     if model_data["pricing"]["prompt"] == "0":

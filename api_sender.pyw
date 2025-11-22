@@ -92,7 +92,7 @@ def load_history():
     history = [{"role": "system", "content": f"{BASE_SYSTEM_PROMPT} \n [USERPROMPT] \n{USER_SYSTEM_PROMPT} \n[/USERPROMPT] \n[/INSTRUCTION]"}]
     for message in history_file["messages"]:
         if message["sender"] == "ai":
-            history.append({"role": "assistant", "reasoning": message.get("reasoning", ""), "content": message.get("answer", ""), "reasoning_details": message.get("reasoning_details", [])})
+            history.append({"role": "assistant", "reasoning": message.get("reasoning", ""), "content": message.get("text", ""), "reasoning_details": message.get("reasoning_details", [])})
         elif message["sender"] == "user":
             history.append({"role": "user", "content": message.get("text", "")})
             if message.get("filename", ''): 

@@ -456,7 +456,6 @@ def main():
                     result[order] = answer  # Сохраняем по order
                     
                     if answer and not answer[-1].get("fatal_error"):
-                        # ❌ УБРАЛ time.sleep(0.25) — блокировал UI!
                         if not answer[-1].get('content'):
                             answer[-1]['content'] = "*треск сверчков*"
                         logging.info(f"✅ Модель {order} готова")
