@@ -38,7 +38,7 @@ CONFIG = load_json(CONFIG_PATH)
 os.remove(CONFIG_PATH)
 logging.info(f"Файл конфигурации {CONFIG_PATH} удалён после загрузки.")
 
-HISTORY_PATH = os.path.join(os.path.dirname(__file__), "chats", CONFIG["chat"])
+HISTORY_PATH = os.path.join(os.path.dirname(__file__), "group_chats", CONFIG["chat"])
 history_file = load_json(HISTORY_PATH)
 
 USER_SYSTEM_PROMPT = history_file.get("system_prompt",'')
@@ -90,7 +90,7 @@ def load_history():
     for message in history_file["messages"]:
         if message["sender"] == "ai":
             model = f"Ответ от модели " + message.get("sender_model", "")
-            history.append({"role": "assistant", "reasoning": message.get("reasoning", ""), "content": message.get("answer", "") + f"{model: >{10+len(model)}}", "reasoning_details": message.get("reasoning_details", [])})
+            history.append({"role": "assistant", "reasoning": message.get("reasoning", ""), "content": f"{model: >{10+len(model)}}" + message.get("answer", ""), "reasoning_details": message.get("reasoning_details", [])})
         elif message["sender"] == "user":
             history.append({"role": "user", "content": message.get("text", "")})
             if message.get("filename", ''): 
@@ -121,7 +121,7 @@ def save_history(response : list = [{}], model: str = "" ,progress = 0):
             elif reasoning:
                 text += f"[THOUGHTS: {round(time_reasoning)}]\n{reasoning}\n[/THOUGHTS]\n{answer}" 
             else:
-                text = answer + " "
+                text += answer + " "
 
             if reasoning_details:
                 for reasoning_details_index in reasoning_details:

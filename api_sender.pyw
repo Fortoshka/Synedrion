@@ -121,9 +121,9 @@ def save_history(response : list = [{}], progress = 0):
                 text = f"[LOADING:{1+progress}]Создание запроса...[/LOADING]"
                 break
             elif reasoning:
-                text += f"[THOUGHTS: {round(time_reasoning)}]\n{reasoning}\n[/THOUGHTS]\n{answer}" 
+                text += f"[THOUGHTS: {time_reasoning}]\n{reasoning}\n[/THOUGHTS]\n{answer} " 
             else:
-                text = answer + " "
+                text += answer + " "
 
             if reasoning_details:
                 for reasoning_details_index in reasoning_details:
@@ -163,7 +163,7 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
         "model": MODEL, 
         "transforms": ["middle-out"],
         "messages": history,
-        "temperature": 0.7,
+        "temperature": 1.1,
         "usage": {"include": True},
         "stream": True,
     }
@@ -199,6 +199,7 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
 
         try:
             response.raise_for_status()
+            start_time_reasoning = time.time()
             
             for line in response.iter_lines(8192):
                 if line:
@@ -208,6 +209,7 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
                     if line_str.startswith(":"):
                         if result[0] and error_count == 0 and tools_send == 0 and not result[0]["content"] and not result[0]["reasoning"]:
                             save_history(progress=80)
+                            start_time_reasoning = time.time()
                             result[0]["reasoning"] += " "
                         logging.debug("Игнорируем служебную строку: OPENROUTER PROCESSING")
                         continue 
@@ -281,7 +283,7 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
                             usage = parsed.get("usage", "")
                             if reasoning:
                                 end_time_reasoning = time.time()
-                                result[-1]["time_reasoning"] = round(end_time_reasoning - start_time_reasoning, 3)
+                                result[-1]["time_reasoning"] = round(end_time_reasoning - start_time_reasoning)
                                 result[-1]["reasoning"] += reasoning
                             if content:
                                 result[-1]["content"] += content
@@ -315,13 +317,13 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
         if result[-1]["tool_calls"]:
             temp_result = result.copy()
             temp_result[-1] = {"content": temp_result[-1].get("content", "") + "\n[TOOL_CALLING]Ожидание ответа инструментов...[/TOOL_CALLING]",
-                               "reasoning": temp_result[-1].get("reasoning", ""),
-                               "tool_calls": temp_result[-1].get("tool_calls", ""),
-                               "reasoning_details": temp_result[-1].get("reasoning_details", []),
-                               "time_reasoning": temp_result[-1].get("time_reasoning", 0), 
-                               "usage" : temp_result[-1].get("usage", {}),
-                               "fatal_error": False
-                               }
+                            "reasoning": temp_result[-1].get("reasoning", ""),
+                            "tool_calls": temp_result[-1].get("tool_calls", ""),
+                            "reasoning_details": temp_result[-1].get("reasoning_details", []),
+                            "time_reasoning": temp_result[-1].get("time_reasoning", 0), 
+                            "usage" : temp_result[-1].get("usage", {}),
+                            "fatal_error": False
+                            }
             save_history(response=temp_result)
 
         follow_message = process_tool_calls(
@@ -369,6 +371,8 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
             error_answer += "К сожалению, сервера сейчас перегружены. Попробуйте позже или выберите другую модель."
         elif "404" in err:
             error_answer += "К сожалению, выбранная вами модель больше не поддерживается. Пожалуйста, выберите другую."
+        elif "403" in err:
+            error_answer += "К сожалению, провайдер отклонил запрос. Одна из возможных причин не подерживаеться в вашем регионе или вы проситете что-то запрешеное. Пожалуйста, выберите другую."
         if error_count >= 3: 
             result[0]["fatal_error"] = True
             result[-1]["fatal_error_message"] = error_answer

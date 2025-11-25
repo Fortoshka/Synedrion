@@ -94,22 +94,8 @@ TOOLS: Dict[str, Dict[str, Any]] = {
             },
             "required": ["path"]
         }
-    },
-    "write_file":{
-        "description": "Записать или перезаписать содержимое файла. Создаёт директории если нужно.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "path": {"type": "string", "description": "Полный путь к файлу (обязательный)"},
-                "content": {"type": "string", "description": "Содержимое файла (обязательное)"},
-                "encoding": {"type": "string", "description": "Кодировка: 'utf-8', 'cp1251'. По умолчанию 'utf-8'", "default": "utf-8"},
-                "backup": {"type": "boolean", "description": "Создать бэкап оригинала (.bak). По умолчанию True", "default": True}
-            },
-            "required": ["path", "content"]
-        }
     }
 }
-
 
 def get_coordinates_by_ip() -> dict:
     try:
@@ -212,13 +198,13 @@ def summarize_url(url: str, max_chars: int = 64_000):
         response = requests.get(url, timeout=10, headers={})
         response.raise_for_status()
     except Exception as e:
-        logging.error(f"❌ Не успешный вызов функции: summarize_url с аргументами {url}")
+        logging.error(f"Не успешный вызов функции: summarize_url с аргументами {url}")
         return {"error": f"Failed to load URL: {e}"}
     soup = BeautifulSoup(response.text, "html.parser")
-    # Удаляем скрипты/стили
+
     for tag in soup(["script", "style", "noscript"]):
         tag.decompose()
-    # ✅ ОСНОВНОЙ ТЕКСТ (без изменений)
+
     text = soup.get_text(separator="\n")
     lines = [line.strip() for line in text.splitlines()]
     lines = [line for line in lines if line]
@@ -226,20 +212,18 @@ def summarize_url(url: str, max_chars: int = 64_000):
     title = soup.title.string.strip() if soup.title and soup.title.string else ""
     if len(clean_text) > max_chars:
         clean_text = clean_text[:max_chars]
-    # ✅ НОВОЕ: СОБИРАЕМ ССЫЛКИ (ТОП-20 уникальных)
+
     links = set()
     for a in soup.find_all('a', href=True):
         href = a['href']
-        # Absolute URL + фильтр
         full_url = urljoin(url, href)
         parsed = urlparse(full_url)
         if (parsed.scheme in ('http', 'https') and 
-            not parsed.path.startswith('#') and  # Нет anchors
+            not parsed.path.startswith('#') and 
             not href.startswith(('mailto:', 'tel:', 'javascript:'))):
             links.add(full_url)
     
-    links_list = list(links)[:20]  # Топ-20
-    # ✅ НОВОЕ: СОБИРАЕМ ИЗОБРАЖЕНИЯ (ТОП-20 уникальных)
+    links_list = list(links)[:20] 
     images = set()
     for img in soup.find_all('img', src=True):
         src = img['src']
@@ -248,15 +232,15 @@ def summarize_url(url: str, max_chars: int = 64_000):
         if parsed.scheme in ('http', 'https'):
             images.add(full_src)
     
-    images_list = list(images)[:20]  # Топ-20
-    logging.info(f"✅ Успешный вызов функции: summarize_url с аргументами {url}")
+    images_list = list(images)[:20]  
+    logging.info(f"Успешный вызов функции: summarize_url с аргументами {url}")
     return {
         "title": title,
         "url": url,
         "length": len(clean_text),
         "content": clean_text,
-        "links": links_list,          # ✅ Массив ссылок
-        "images": images_list,        # ✅ Массив изображений
+        "links": links_list,         
+        "images": images_list,      
         "links_count": len(links_list),
         "images_count": len(images_list)
     }
@@ -456,32 +440,6 @@ def read_file(path: str, max_chars: int = 50000, encoding: str = "auto") -> Dict
         logging.error(f"read_file error: {e}")
         return {"error": f"Ошибка чтения '{path}': {str(e)}"}
 
-def write_file(path: str, content: str, encoding: str = "utf-8", backup: bool = True) -> Dict[str, Any]:
-    """Инструмент: запись файла."""
-    try:
-        file_path = Path(path)
-        file_path.parent.mkdir(parents=True, exist_ok=True)  # Создаём директории
-        
-        if backup and file_path.exists():
-            backup_path = file_path.with_suffix(file_path.suffix + '.bak')
-            file_path.replace(backup_path)
-            logging.info(f"Создан бэкап: {backup_path}")
-        
-        with open(file_path, 'w', encoding=encoding) as f:
-            f.write(content)
-        
-        return {
-            "success": True,
-            "path": str(file_path),
-            "size": len(content),
-            "message": f"Файл успешно записан ({len(content)} символов)"
-        }
-        
-    except Exception as e:
-        logging.error(f"write_file error: {e}")
-        return {"error": f"Ошибка записи '{path}': {str(e)}"}
-
-
 # Регистр обработчиков здесь:
 TOOL_HANDLERS = {
     "get_exchange_rate": get_exchange_rate,
@@ -489,8 +447,7 @@ TOOL_HANDLERS = {
     "summarize_url": summarize_url,
     "search_web": search_web,
     "list_files": list_files,
-    "read_file": read_file,
-    "write_file": write_file
+    "read_file": read_file
 }
 
 

@@ -32,14 +32,14 @@ def load_json(path: str):
 
 
 API_URL = "https://openrouter.ai/api/v1/chat/completions"
-EXC_INFO = False # Подробное логирование ошибок
+EXC_INFO = True # Подробное логирование ошибок
 
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), "config", "request.json")
 CONFIG = load_json(CONFIG_PATH)
 os.remove(CONFIG_PATH)
 logging.info(f"Файл конфигурации {CONFIG_PATH} удалён после загрузки.")
 
-HISTORY_PATH = os.path.join(os.path.dirname(__file__), "chats", CONFIG["chat"])
+HISTORY_PATH = os.path.join(os.path.dirname(__file__), "group_chats", CONFIG["chat"])
 history_file = load_json(HISTORY_PATH)
 
 USER_SYSTEM_PROMPT = history_file.get("system_prompt",'')
@@ -91,7 +91,7 @@ def load_history():
     for message in history_file["messages"]:
         if message["sender"] == "ai":
             model = f"Ответ от модели " + message.get("sender_model", "")
-            history.append({"role": "assistant", "reasoning": message.get("reasoning", ""), "content": message.get("answer", "") + f"{model: >{10+len(model)}}", "reasoning_details": message.get("reasoning_details", [])})
+            history.append({"role": "assistant", "reasoning": message.get("reasoning", ""), "content": message.get("text", "") + f"{model: >{10+len(model)}}", "reasoning_details": message.get("reasoning_details", [])})
         elif message["sender"] == "user":
             history.append({"role": "user", "content": message.get("text", "")})
             if message.get("filename", ''): 
@@ -123,7 +123,7 @@ def save_history(response : list = [{}], model: str = "" ,progress = 0, order:in
             elif reasoning:
                 text += f"[THOUGHTS: {round(time_reasoning)}]\n{reasoning}\n[/THOUGHTS]\n{answer}" 
             else:
-                text = answer + " "
+                text += answer + " "
 
             if reasoning_details:
                 for reasoning_details_index in reasoning_details:
@@ -371,8 +371,8 @@ def send_message_api(history: list, model: str = "", tools_send: int = 0, error_
         elif "404" in err:
             error_answer += "К сожалению, выбранная вами модель больше не поддерживается. Пожалуйста, выберите другую."
         if error_count >= 3: 
-            result[0]["fatal_error"] = True
-            result[-1]["fatal_error_message"] = error_answer
+            result[order][0]["fatal_error"] = True
+            result[order][-1]["fatal_error_message"] = error_answer
             return result
         logging.warning(f"Пробуем еще раз так как может быть временная ошибка")
         result_retry = send_message_api(history=history, error_count=(error_count + 1), tools_send=tools_send)
@@ -380,14 +380,14 @@ def send_message_api(history: list, model: str = "", tools_send: int = 0, error_
 
     except KeyError as ke:
         logging.error(f"Неверный формат ответа API: {response.text if 'response' in locals() else 'response не определён'}, ошибка: {ke}", exc_info=EXC_INFO)
-        result[0]["fatal_error"] = True
-        result[-1]["fatal_error_message"] = f"Неверный формат ответа API: {ke}"
+        result[order][0]["fatal_error"] = True
+        result[order][-1]["fatal_error_message"] = f"Неверный формат ответа API: {ke}"
         return result
 
     except Exception as e:
         logging.error(f"Неожиданная ошибка в основном блоке: {e}", exc_info=EXC_INFO)
-        result[0]["fatal_error"] = True
-        result[-1]["fatal_error_message"] = f"Неожиданная ошибка: {e}"
+        result[order][0]["fatal_error"] = True
+        result[order][-1]["fatal_error_message"] = f"Неожиданная ошибка: {e}"
         return result
 
     finally:
@@ -400,29 +400,27 @@ def send_message_api(history: list, model: str = "", tools_send: int = 0, error_
         except Exception as e:
             logging.warning(f"Ошибка при удалении API ключа: {e}")
         
-        if result[0].get("fatal_error") and error_count == 0:
-            error_answer = result[-1].get("fatal_error_message", "Произошла ошибка.")
-            del history_file["messages"][-1]
-            history_file["messages"].append({
+        if result[order][0].get("fatal_error") and error_count == 0:
+            error_answer = result[order][-1].get("fatal_error_message", "Произошла ошибка.")
+            history_file["messages"][-(len(MODELS) - order)] = {
                 'id': int(time.time() * 1000),  # Уникальный ID
                 'sender': 'error',
                 'sender_model': model,
                 'text': error_answer,
                 'timestamp': datetime.now().isoformat()
-            })
+            }
         
 
 def main():
     global result, history_file
     try:
-        result = {order: [] for order in range(len(MODELS))}  # ✅ Dict с ключами 0..N
+        result = {order: [] for order in range(len(MODELS))} 
         
-        history = load_history()  # Кэш истории
+        history = load_history()
         
-        # Добавляем N сообщений для моделей
         for order in range(len(MODELS)):
             history_file["messages"].append({
-                'id': int(time.time() * 1000),
+                'id': int(time.time() * 1000) + order,
                 'sender': 'ai',
                 'sender_model': MODELS_NAMES.get("model_name_by_id", {}).get(MODELS[order], ""),
                 "reasoning": "",
@@ -440,38 +438,37 @@ def main():
             logging.info(f"Вызов send_message_api: модель {model} (order={order})")
             return send_message_api(history=history, model=model, order=order)
         
-        # ✅ futures как DICT {future: order}
         with ThreadPoolExecutor(max_workers=min(50, len(MODELS))) as executor:
             futures = {
                 executor.submit(send_message_api_fit, order): order 
                 for order in range(len(MODELS))
             }
             
-            # ✅ as_completed с обработкой ошибок
             for future in as_completed(futures, timeout=60):
-                order = futures[future]  # ✅ Правильный order!
+                order = futures[future]
                 
                 try:
                     answer = future.result(timeout=20)
-                    result[order] = answer  # Сохраняем по order
-                    
-                    if answer and not answer[-1].get("fatal_error"):
+                    result[order] = answer
+                    if answer[-1].get("fatal_error"):
+                        raise ValueError("Fatal error модели")
+                    if answer:
                         if not answer[-1].get('content'):
                             answer[-1]['content'] = "*треск сверчков*"
-                        logging.info(f"✅ Модель {order} готова")
+                        logging.info(f"Модель {order} готова")
                     else:
                         raise ValueError("Fatal error")
                         
                 except TimeoutError:
-                    logging.error(f"⏰ Timeout модели {order}")
+                    logging.error(f"Timeout модели {order}")
                     result[order] = [{"fatal_error": True, "content": "Timeout"}]
                 except Exception as e:
-                    logging.error(f"❌ Ошибка модели {order}: {e}")
+                    logging.error(f"Ошибка модели {order}: {e}", exc_info=EXC_INFO)
         
         logging.info("Все модели завершены!")
         
     except KeyboardInterrupt:
-        logging.info("Завершено по Ctrl+C")
+        logging.info("Завершено принудительно")
     except Exception as e:
         for _ in range(len(MODELS)):
             del history_file["messages"][-1]
