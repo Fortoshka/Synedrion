@@ -170,7 +170,7 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
     if MODEL in TOOL_SUPPORTED_MODELS:
         payload["tools"] = TOOLS_USE
     if REASONING_MAX>0:
-        payload["reasoning"] = {"max_tokens": REASONING_MAX * 100}
+        payload["reasoning"] = {"max_tokens": REASONING_MAX * 10}
     else:
         payload["reasoning"] = {"exclude": True} 
 
@@ -261,6 +261,7 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
                                         args_chunk = tool_call_chunk.get("function", {}).get("arguments", "")
                                         if args_chunk:
                                             tool_calls_buffer[index]["function"]["arguments"] += args_chunk
+
 
                             reasoning_details = delta.get("reasoning_details", [])
                             if reasoning_details:
