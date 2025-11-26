@@ -402,7 +402,7 @@ def create_request():
         # 2. Запускаем api_sender.py
         try:
             # Запускаем скрипт в отдельном процессе
-            # subprocess.Popen([sys.executable, 'api_sender_test.pyw'], 
+            # subprocess.Popen([sys.executable, 'api_sender_council.pyw'], 
             subprocess.Popen([sys.executable, 'api_sender.pyw'],                  
                            stdout=subprocess.PIPE, 
                            stderr=subprocess.PIPE)
@@ -779,6 +779,6 @@ if __name__ == '__main__':
     if settings.get('fullscreen', False):
         webview.create_window('Synedrion', 'http://127.0.0.1:1703', width=1200, height=800, fullscreen=True)
     else:
-        webview.create_window('Synedrion', 'http://127.0.0.1:1703', width=1200, height=800, min_size=(600, 800))
+        webview.create_window('Synedrion', 'http://127.0.0.1:1703', width=1200, height=800, min_size=(600, 850))
     
-    webview.start(icon="logo.ico")
+    webview.start()

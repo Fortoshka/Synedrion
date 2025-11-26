@@ -149,6 +149,7 @@ body {
     overflow: hidden;
     color: var(--text-color);
     font-weight: 500;
+    min-width: 55px;
 }
 
 /* Новая анимация при наведении */

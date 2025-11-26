@@ -2,9 +2,9 @@
   "fullscreen": false,
   "models": [
     {
-      "id": 9,
-      "name": "MiniMax: MiniMax M2",
-      "url": "minimax/minimax-m2:free"
+      "id": 10,
+      "name": "Z.AI: GLM 4.5 Air",
+      "url": "z-ai/glm-4.5-air:free"
     },
     {
       "id": 2,
@@ -12,19 +12,9 @@
       "url": "deepseek/deepseek-r1-0528-qwen3-8b:free"
     },
     {
-      "id": 3,
-      "name": "OpenAI: gpt-oss-20b",
-      "url": "openai/gpt-oss-20b:free"
-    },
-    {
       "id": 4,
       "name": "TNG: DeepSeek R1T2 Chimera",
       "url": "tngtech/deepseek-r1t2-chimera:free"
-    },
-    {
-      "id": 5,
-      "name": "Qwen3 235B A22B",
-      "url": "qwen/qwen3-235b-a22b:free"
     },
     {
       "id": 6,
@@ -32,14 +22,19 @@
       "url": "tngtech/deepseek-r1t-chimera:free"
     },
     {
-      "id": 10,
-      "name": "Z.AI: GLM 4.5 Air",
-      "url": "z-ai/glm-4.5-air:free"
+      "id": 11,
+      "name": "Microsoft: MAI DS R1",
+      "url": "microsoft/mai-ds-r1:free"
     },
     {
-      "id": 11,
-      "name": "Polaris Alpha",
-      "url": "openrouter/polaris-alpha"
+      "id": 12,
+      "name": "Google: Gemma 3 27B",
+      "url": "google/gemma-3-27b-it:free"
+    },
+    {
+      "id": 13,
+      "name": "xAI: Grok 4.1 Fast",
+      "url": "x-ai/grok-4.1-fast"
     }
   ],
   "theme": "dark"

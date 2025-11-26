@@ -2,9 +2,7 @@ from datetime import datetime
 import http
 import random
 import re
-import signal
 import time
-import pexpect
 import requests
 import json
 import os
@@ -40,11 +38,11 @@ CONFIG = load_json(CONFIG_PATH)
 os.remove(CONFIG_PATH)
 logging.info(f"Файл конфигурации {CONFIG_PATH} удалён после загрузки.")
 
-HISTORY_PATH = os.path.join(os.path.dirname(__file__), "chats", CONFIG["chat"])
+HISTORY_PATH = os.path.join(os.path.dirname(__file__), "group_chats", CONFIG["chat"])
 history_file = load_json(HISTORY_PATH)
 
 USER_SYSTEM_PROMPT = history_file.get("system_prompt",'')
-MODEL = history_file.get("model")
+MODELS = history_file.get("models")
 REASONING_MAX = history_file.get("reasoning_len")
 KYES_PATH ="api_keys.json"
 if not os.path.exists(KYES_PATH): KYES_PATH ="api_keys.example.json"
@@ -52,8 +50,7 @@ api_keys_p = load_json(os.path.join(os.path.dirname(__file__), KYES_PATH))
 
 ID = int(time.time() * 1000)  # Уникальный ID
 MODELS_NAMES = load_json(os.path.join(os.path.dirname(__file__), "models.json"))
-TOOL_SUPPORTED_MODELS = MODELS_NAMES["tools"]
-MODEL_NAME = history_file.get("models_name", "") or MODELS_NAMES.get("model_name_by_id", {}).get(MODEL, "")
+TOOL_SUPPORTED_MODELS = MODELS["tools"]
 
 BASE_SYSTEM_PROMPT = open(os.path.join(os.path.dirname(__file__), "config", "system_promt.txt"), "r", encoding="utf-8").read()
 if not history_file.get("search_web", "123"):
@@ -63,7 +60,7 @@ else:
 
 
 def get_api_keys():
-    if api_keys_p.get("key", ""):
+    if api_keys_p["key"]:
         return random.choice(api_keys_p["key"])
     p_url = "https://openrouter.ai/api/v1/keys"
     p_api = api_keys_p.get("p_key", api_keys_p)[0]
@@ -92,7 +89,8 @@ def load_history():
     history = [{"role": "system", "content": f"{BASE_SYSTEM_PROMPT} \n [USERPROMPT] \n{USER_SYSTEM_PROMPT} \n[/USERPROMPT] \n[/INSTRUCTION]"}]
     for message in history_file["messages"]:
         if message["sender"] == "ai":
-            history.append({"role": "assistant", "reasoning": message.get("reasoning", ""), "content": message.get("text", ""), "reasoning_details": message.get("reasoning_details", [])})
+            model = f"Ответ от модели " + message.get("sender_model", "")
+            history.append({"role": "assistant", "reasoning": message.get("reasoning", ""), "content": f"{model: >{10+len(model)}}" + message.get("answer", ""), "reasoning_details": message.get("reasoning_details", [])})
         elif message["sender"] == "user":
             history.append({"role": "user", "content": message.get("text", "")})
             if message.get("filename", ''): 
@@ -105,7 +103,7 @@ def load_history():
     logging.info(f"История диалога загружена. Всего сообщений: {len(history)}")
     return history
 
-def save_history(response : list = [{}], progress = 0):
+def save_history(response : list = [{}], model: str = "" ,progress = 0):
     """Сохраняет историю диалога в файл"""
     text = ""
     answer = ""
@@ -121,7 +119,7 @@ def save_history(response : list = [{}], progress = 0):
                 text = f"[LOADING:{1+progress}]Создание запроса...[/LOADING]"
                 break
             elif reasoning:
-                text += f"[THOUGHTS: {time_reasoning}]\n{reasoning}\n[/THOUGHTS]\n{answer} " 
+                text += f"[THOUGHTS: {round(time_reasoning)}]\n{reasoning}\n[/THOUGHTS]\n{answer}" 
             else:
                 text += answer + " "
 
@@ -145,6 +143,7 @@ def save_history(response : list = [{}], progress = 0):
             if open_count > 0:
                 text += "[/CODE]"
 
+    history_file["messages"][-1]["model"] = model
     history_file["messages"][-1]["reasoning"] = reasoning
     history_file["messages"][-1]["answer"] = answer
     history_file["messages"][-1]['text'] = text
@@ -153,24 +152,24 @@ def save_history(response : list = [{}], progress = 0):
         json.dump(history_file, f, ensure_ascii=False, indent=2)
     return True
 
-def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
+def send_message_api(history: list, model: str = "", tools_send: int = 0, error_count: int = 0 ):
     api_data = get_api_keys()
     headers = {
         "Authorization": f"Bearer {api_data['key']}",
         "Content-Type": "application/json"
     }
     payload = {
-        "model": MODEL, 
+        "model": model, 
         "transforms": ["middle-out"],
         "messages": history,
-        "temperature": 1.1,
+        "tool_choice": "auto",
         "usage": {"include": True},
         "stream": True,
     }
-    if MODEL in TOOL_SUPPORTED_MODELS:
+    if model in TOOL_SUPPORTED_MODELS:
         payload["tools"] = TOOLS_USE
     if REASONING_MAX>0:
-        payload["reasoning"] = {"max_tokens": REASONING_MAX * 10}
+        payload["reasoning"] = {"max_tokens": REASONING_MAX}
     else:
         payload["reasoning"] = {"exclude": True} 
 
@@ -199,7 +198,6 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
 
         try:
             response.raise_for_status()
-            start_time_reasoning = time.time()
             
             for line in response.iter_lines(8192):
                 if line:
@@ -209,7 +207,6 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
                     if line_str.startswith(":"):
                         if result[0] and error_count == 0 and tools_send == 0 and not result[0]["content"] and not result[0]["reasoning"]:
                             save_history(progress=80)
-                            start_time_reasoning = time.time()
                             result[0]["reasoning"] += " "
                         logging.debug("Игнорируем служебную строку: OPENROUTER PROCESSING")
                         continue 
@@ -262,7 +259,6 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
                                         if args_chunk:
                                             tool_calls_buffer[index]["function"]["arguments"] += args_chunk
 
-
                             reasoning_details = delta.get("reasoning_details", [])
                             if reasoning_details:
                                 for detail in reasoning_details:
@@ -284,7 +280,7 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
                             usage = parsed.get("usage", "")
                             if reasoning:
                                 end_time_reasoning = time.time()
-                                result[-1]["time_reasoning"] = round(end_time_reasoning - start_time_reasoning)
+                                result[-1]["time_reasoning"] = round(end_time_reasoning - start_time_reasoning, 3)
                                 result[-1]["reasoning"] += reasoning
                             if content:
                                 result[-1]["content"] += content
@@ -318,13 +314,13 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
         if result[-1]["tool_calls"]:
             temp_result = result.copy()
             temp_result[-1] = {"content": temp_result[-1].get("content", "") + "\n[TOOL_CALLING]Ожидание ответа инструментов...[/TOOL_CALLING]",
-                            "reasoning": temp_result[-1].get("reasoning", ""),
-                            "tool_calls": temp_result[-1].get("tool_calls", ""),
-                            "reasoning_details": temp_result[-1].get("reasoning_details", []),
-                            "time_reasoning": temp_result[-1].get("time_reasoning", 0), 
-                            "usage" : temp_result[-1].get("usage", {}),
-                            "fatal_error": False
-                            }
+                               "reasoning": temp_result[-1].get("reasoning", ""),
+                               "tool_calls": temp_result[-1].get("tool_calls", ""),
+                               "reasoning_details": temp_result[-1].get("reasoning_details", []),
+                               "time_reasoning": temp_result[-1].get("time_reasoning", 0), 
+                               "usage" : temp_result[-1].get("usage", {}),
+                               "fatal_error": False
+                               }
             save_history(response=temp_result)
 
         follow_message = process_tool_calls(
@@ -372,8 +368,6 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
             error_answer += "К сожалению, сервера сейчас перегружены. Попробуйте позже или выберите другую модель."
         elif "404" in err:
             error_answer += "К сожалению, выбранная вами модель больше не поддерживается. Пожалуйста, выберите другую."
-        elif "403" in err:
-            error_answer += "К сожалению, провайдер отклонил запрос. Одна из возможных причин не подерживаеться в вашем регионе или вы проситете что-то запрешеное. Пожалуйста, выберите другую."
         if error_count >= 3: 
             result[0]["fatal_error"] = True
             result[-1]["fatal_error_message"] = error_answer
@@ -410,7 +404,7 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
             history_file["messages"].append({
                 'id': int(time.time() * 1000),  # Уникальный ID
                 'sender': 'error',
-                'sender_model': MODEL_NAME,
+                'sender_model': model,
                 'text': error_answer,
                 'timestamp': datetime.now().isoformat()
             })
@@ -418,50 +412,60 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
 
 def main():
     try:
-        history = load_history()
-        history_file["messages"].append({
-            'id': ID,
-            'sender': 'ai',
-            'sender_model': MODEL_NAME,
-            "reasoning": "",
-            "reasoning_details": [],
-            "answer": "",
-            'text':  "",
-            'timestamp': datetime.now().isoformat()
-        })
-        history_file["PID"] = os.getpid()
-        save_history(progress=25)
         global result
         result = []
-        answer = send_message_api(history=history)
-        if answer[-1].get("fatal_error", ""):
-            pass
-        elif answer:
-            time.sleep(0.25)
-            if len(result) == 1 and answer[-1].get('content','') == "":
-                answer[-1]['content'] += "*треск сверчков*"
-            logging.info(f"История сохранена.")
-            logging.info("Ответ сохранён в истории.")
-        else:
-            logging.warning("Ответ не был получен.")
-    except Exception as e:
-        logging.error(f"Ошибка в коде: {e}", exc_info=EXC_INFO)
-        del history_file["messages"][-1]
-        history_file["messages"].append({
-            'id': int(time.time() * 1000),  # Уникальный ID
-            'sender': 'error',
-            'sender_model': MODEL_NAME,
-            'text': "⚠️При обработке запроса возникла ошибка⚠️\nЭто могло произойти из-за:\n❌Неработоспособности ключей API\n❌Ошибки в коде программы\n\nЕсли Вам срочно необходима помощь с решением проблемы, обратитесь в тех поддержку (смотрите раздел 'О приложении'). В противном случае попробуйте создать новый чат, перегенерировать текущий, или дождаться решения проблемы в новом обновлении.",
-            'timestamp': datetime.now().isoformat()
-        })
+        for model in MODELS:
+            global history_file
+            history_file = load_json(HISTORY_PATH)
+            global ID
+            ID = int(time.time() * 1000)  # Уникальный ID
+            result = []
+            history_file["messages"].append({
+                'id': ID,
+                'sender': 'ai',
+                'sender_model': MODELS_NAMES.get("model_name_by_id", {}).get(model, ""),
+                "reasoning": "",
+                "reasoning_details": [],
+                "answer": "",
+                'text':  "",
+                'timestamp': datetime.now().isoformat()
+            })
+            save_history(progress=25)
+            time.sleep(1)
+            history_file["PID"] = os.getpid()
+            logging.info(model)
+            try:
+                history = load_history()
+                answer = send_message_api(history=history, model=model)
+                if answer[-1].get("fatal_error", ""):
+                    raise
+                elif answer:
+                    time.sleep(0.25)
+                    if len(result) == 1 and answer[-1].get('content','') == "":
+                        answer[-1]['content'] += "*треск сверчков*"
+                    logging.info(f"История сохранена.")
+                    logging.info("Ответ сохранён в истории.")
+                else:
+                    logging.warning("Ответ не был получен.")
+            except Exception as e:
+                logging.error(f"Ошибка в коде: {e}", exc_info=EXC_INFO)
+                del history_file["messages"][-1]
+                history_file["messages"].append({
+                    'id': int(time.time() * 1000),  # Уникальный ID
+                    'sender': 'error',
+                    'sender_model': model,
+                    'text': "⚠️При обработке запроса возникла ошибка⚠️\nЭто могло произойти из-за:\n❌Неработоспособности ключей API\n❌Ошибки в коде программы\n\nЕсли Вам срочно необходима помощь с решением проблемы, обратитесь в тех поддержку (смотрите раздел 'О приложении'). В противном случае попробуйте создать новый чат, перегенерировать текущий, или дождаться решения проблемы в новом обновлении.",
+                    'timestamp': datetime.now().isoformat()
+                })
+            finally:
+                for use in result:
+                    logging.info(use.get("usage"))
+                history_file["PID"] = None
+                with open(HISTORY_PATH, "w", encoding="utf-8") as f:
+                    json.dump(history_file, f, ensure_ascii=False, indent=2)
     except KeyboardInterrupt:
         logging.info(f"api_sender.pyw звершина принудительно!")
     finally:
-        for use in result:
-            logging.info(use.get("usage"))
-        history_file["PID"] = None
-        with open(HISTORY_PATH, "w", encoding="utf-8") as f:
-            json.dump(history_file, f, ensure_ascii=False, indent=2)
         logging.info("api_sender.pyw завершил работу!")
 
 
