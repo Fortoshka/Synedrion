@@ -7,11 +7,13 @@
     --text-color: white;
     --text-secondary: rgba(255, 255, 255, 0.9);
     --card-bg: rgba(255, 255, 255, 0.15);
+    --card-bg2: rgba(230, 217, 250, 0.151);
     --card-border: rgb(120, 120, 120);
     --shadow-color: rgba(31, 38, 135, 0.37);
     --icon-primary-color: #6366f1;
     --icon-secondary-color: #818cf8;
     --bold-text-color: #cecfff;
+    --logo-color: rgb(74, 54, 223);
 }
 
 /* Темная тема */
@@ -24,11 +26,13 @@
     --text-color: #f1f5f9;
     --text-secondary: rgba(241, 245, 249, 0.9);
     --card-bg: rgba(30, 41, 59, 0.7);
+    --card-bg2: rgba(230, 217, 250, 0.151);
     --card-border: rgba(71, 85, 105, 1);
     --shadow-color: rgba(0, 0, 0, 0.5);
     --icon-primary-color: #2563eb;
     --icon-secondary-color: #60a5fa;
     --bold-text-color: #d3d7f8;
+    --logo-color: #4200dd;
 }
 
 /* Светлая тема */
@@ -41,11 +45,13 @@
     --text-color: #f1f5f9;
     --text-secondary: rgba(241, 245, 249, 0.9);
     --card-bg: rgba(30, 41, 59, 0.7);
+    --card-bg2: rgba(255, 255, 255, 0.151);
     --card-border: rgba(71, 85, 105, 1);
     --shadow-color: rgba(0, 0, 0, 0.5);
     --icon-primary-color: #a538e0;
     --icon-secondary-color: #60a5fa;
     --bold-text-color: #d3d7f8;
+    --logo-color: rgb(89, 215, 171);
 }
 
 
@@ -997,5 +1003,390 @@ input:checked + .slider:before {
     }
     100% {
         transform: scale(1);
+    }
+}
+
+/* Кастомный выпадающий список */
+.setting-item-select {
+    justify-content: space-between;
+}
+
+.setting-item-select .setting-label {
+    margin-left: 0;
+}
+
+.custom-select-wrapper {
+    position: relative;
+    min-width: 200px;
+}
+
+.custom-select {
+    position: relative;
+    user-select: none;
+}
+
+.custom-select-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 180px;
+}
+
+.custom-select-trigger:hover {
+    background: rgba(255, 255, 255, 0.25);
+    border-color: var(--primary-color);
+}
+
+.custom-select.open .custom-select-trigger {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.3);
+    border-radius: 12px 12px 0 0;
+}
+
+.custom-select-value {
+    color: var(--text-color);
+    font-weight: 500;
+    font-size: 1rem;
+}
+
+.custom-select-arrow {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    transition: transform 0.3s ease;
+}
+
+.custom-select.open .custom-select-arrow {
+    transform: rotate(180deg);
+}
+
+.custom-select-options {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: rgba(30, 41, 59, 0.95);
+    backdrop-filter: blur(15px);
+    border: 1px solid var(--card-border);
+    border-top: none;
+    border-radius: 0 0 12px 12px;
+    overflow: hidden;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.3s ease;
+    z-index: 100;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.custom-select.open .custom-select-options {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.custom-select-option {
+    padding: 12px 16px;
+    color: var(--text-color);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-weight: 500;
+}
+
+.custom-select-option:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.custom-select-option.selected {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.custom-select-option.selected::after {
+    content: ' ✓';
+    opacity: 0.8;
+}
+
+/* Адаптивность для кастомного селекта */
+@media (max-width: 480px) {
+    .custom-select-wrapper {
+        min-width: 150px;
+    }
+    
+    .custom-select-trigger {
+        padding: 10px 12px;
+        min-width: 140px;
+    }
+    
+    .custom-select-value {
+        font-size: 0.9rem;
+    }
+}
+
+/* =====================================================
+   SYNEDRION INTERFACE STYLES
+   ===================================================== */
+
+.synedrion-layout {
+    display: flex;
+    height: 100vh;
+    width: 100%;
+    overflow: hidden;
+}
+
+/* Левая часть - логотип (75%) */
+.synedrion-logo-section {
+    flex: 3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    animation: synedrionLogoFadeIn 1.2s ease-out;
+    overflow: visible;
+}
+
+.synedrion-logo-wrapper {
+    width: 95%;
+    max-width: 1100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.synedrion-logo {
+    width: 100%;
+    height: auto;
+    fill: var(--logo-color, rgba(255, 255, 255, 0.3));
+    transition: fill 0.5s ease;
+    filter: drop-shadow(0 0 40px var(--shadow-color));
+}
+
+/* Правая часть - меню (25%) */
+.synedrion-menu-section {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    animation: synedrionMenuSlideIn 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.synedrion-menu-card {
+    background: var(--card-bg);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--card-border);
+    border-radius: 24px;
+    padding: 2.5rem 2rem;
+    width: 100%;
+    max-width: 340px;
+    box-shadow: 0 20px 60px var(--shadow-color);
+    display: flex;
+    flex-direction: column;
+    gap: 1.75rem;
+}
+
+/* Приветствие */
+.synedrion-welcome {
+    text-align: center;
+    animation: synedrionFadeInUp 0.6s ease-out 0.3s both;
+}
+
+.synedrion-greeting {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--text-color);
+    margin: 0 0 0.4rem 0;
+}
+
+.synedrion-subtitle {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    margin: 0;
+    opacity: 0.8;
+}
+
+/* Кнопки */
+.synedrion-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 0.875rem;
+}
+
+.synedrion-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    padding: 1rem 1.25rem;
+    border-radius: 14px;
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 1.05rem;
+    transition: all 0.3s ease;
+    border: 1px solid transparent;
+    cursor: pointer;
+    background: none;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.synedrion-btn-icon {
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+
+.synedrion-btn-text {
+    flex: 1;
+    text-align: left;
+}
+
+.synedrion-btn-primary {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+    color: white;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    animation: synedrionFadeInUp 0.5s ease-out both;
+}
+
+.synedrion-btn-primary:nth-child(1) { animation-delay: 0.4s; }
+.synedrion-btn-primary:nth-child(2) { animation-delay: 0.5s; }
+
+.synedrion-btn-primary:hover {
+    transform: translateX(-5px) scale(1.02);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+    filter: brightness(1.1);
+}
+
+.synedrion-btn-secondary {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-color);
+    border-color: var(--card-border);
+    animation: synedrionFadeInUp 0.5s ease-out both;
+}
+
+.synedrion-btn-secondary:nth-child(3) { animation-delay: 0.6s; }
+.synedrion-btn-secondary:nth-child(4) { animation-delay: 0.7s; }
+
+.synedrion-btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateX(-5px) scale(1.02);
+    border-color: var(--primary-color);
+}
+
+/* Кнопка выхода */
+.synedrion-exit {
+    margin-top: 0.5rem;
+    animation: synedrionFadeInUp 0.5s ease-out 0.8s both;
+}
+
+.synedrion-btn-exit {
+    justify-content: center;
+    padding: 0.7rem 1rem;
+    font-size: 0.85rem;
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+.synedrion-btn-exit:hover {
+    background: rgba(239, 68, 68, 0.25);
+    transform: translateX(-5px) scale(1.02);
+    border-color: #ef4444;
+}
+
+/* Анимации */
+@keyframes synedrionMenuSlideIn {
+    from {
+        opacity: 0;
+        transform: translateX(100px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes synedrionLogoFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes synedrionFadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Адаптивность для Synedrion */
+@media (max-width: 1024px) {
+    .synedrion-layout {
+        flex-direction: column;
+        justify-content: center;
+    }
+    
+    .synedrion-logo-section {
+        display: none;
+    }
+    
+    .synedrion-menu-section {
+        flex: 1;
+        padding: 2rem;
+        animation: synedrionMenuSlideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    
+    .synedrion-menu-card {
+        max-width: 400px;
+    }
+}
+
+@keyframes synedrionMenuSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(50px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (max-width: 480px) {
+    .synedrion-logo-section {
+        padding: 1.5rem 1rem 0.5rem;
+    }
+    
+    .synedrion-logo-wrapper {
+        max-width: 200px;
+    }
+    
+    .synedrion-menu-section {
+        padding: 0.5rem 1rem 1.5rem;
+    }
+    
+    .synedrion-menu-card {
+        padding: 1.5rem 1rem;
+        border-radius: 20px;
+    }
+    
+    .synedrion-greeting {
+        font-size: 1.2rem;
+    }
+    
+    .synedrion-btn {
+        padding: 0.75rem 0.875rem;
+        font-size: 0.9rem;
     }
 }

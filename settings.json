@@ -1,5 +1,6 @@
 {
   "fullscreen": false,
+  "interfaceType": "synedrion",
   "models": [
     {
       "id": 10,

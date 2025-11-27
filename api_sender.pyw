@@ -2,9 +2,7 @@ from datetime import datetime
 import http
 import random
 import re
-import signal
 import time
-import pexpect
 import requests
 import json
 import os

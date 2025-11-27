@@ -20,13 +20,13 @@ class SingleChat {
         });
         
         document.getElementById('send-message-btn').addEventListener('click', () => {
-            this.sendMessage();
+            this.handleSendButtonClick();
         });
         
         document.getElementById('message-input').addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                this.sendMessage();
+                this.handleSendButtonClick();
             }
         });
         
@@ -935,24 +935,52 @@ class SingleChat {
     createCodeBlockHTML(language, codeContent) {
         // Разбиваем код на строки
         const lines = codeContent.split('\n');
+        const MAX_VISIBLE_LINES = 25;
+        const isCollapsible = lines.length > MAX_VISIBLE_LINES;
+        const hiddenLinesCount = lines.length - MAX_VISIBLE_LINES;
         
         // Создаем HTML для пронумерованных строк
-        let linesHtml = '';
+        let visibleLinesHtml = '';
+        let hiddenLinesHtml = '';
+        
         lines.forEach((line, index) => {
-            linesHtml += `
+            const lineHtml = `
                 <div class="ai-code-line">
                     <div class="ai-code-line-number">${index + 1}</div>
                     <div class="ai-code-line-content">${this.escapeHtmlForCode(line)}</div>
                 </div>
             `;
+            
+            if (index < MAX_VISIBLE_LINES) {
+                visibleLinesHtml += lineHtml;
+            } else {
+                hiddenLinesHtml += lineHtml;
+            }
         });
         
         // Создаем уникальные ID для кнопок
         const copyButtonId = `copy-btn-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         const downloadButtonId = `download-btn-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const expandButtonId = `expand-btn-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        
+        // Формируем текст для кнопки разворачивания
+        const expandButtonHtml = isCollapsible ? `
+            <div class="ai-code-expand-container">
+                <button class="ai-code-expand-btn" id="${expandButtonId}" data-expanded="false">
+                    ещё ${hiddenLinesCount} ${this.getLineWord(hiddenLinesCount)}
+                </button>
+            </div>
+        ` : '';
+        
+        // Скрытые строки оборачиваем в контейнер
+        const hiddenLinesContainer = isCollapsible ? `
+            <div class="ai-code-hidden-lines" style="display: none;">
+                ${hiddenLinesHtml}
+            </div>
+        ` : '';
         
         return `
-            <div class="ai-code-block">
+            <div class="ai-code-block${isCollapsible ? ' collapsible' : ''}">
                 <div class="ai-code-header">
                     <div class="ai-code-language">${this.escapeHtml(language)}</div>
                     <div class="ai-code-buttons">
@@ -966,11 +994,30 @@ class SingleChat {
                 </div>
                 <div class="ai-code-content">
                     <div class="ai-code-lines">
-                        ${linesHtml}
+                        ${visibleLinesHtml}
+                        ${hiddenLinesContainer}
                     </div>
+                    ${expandButtonHtml}
                 </div>
             </div>
         `;
+    }
+    
+    // Склонение слова "строка"
+    getLineWord(count) {
+        const lastDigit = count % 10;
+        const lastTwoDigits = count % 100;
+        
+        if (lastTwoDigits >= 11 && lastTwoDigits <= 19) {
+            return 'строк';
+        }
+        if (lastDigit === 1) {
+            return 'строка';
+        }
+        if (lastDigit >= 2 && lastDigit <= 4) {
+            return 'строки';
+        }
+        return 'строк';
     }
 
     // Загрузка конкретного чата
@@ -1267,10 +1314,11 @@ class SingleChat {
         // Инициализируем обработчики для кнопок копирования кода (если есть)
         this.initCodeCopyButtons();
         this.initCodeDownloadButtons();
+        this.initCodeExpandButtons();
     }
 
     smoothUpdateContent(container, newContent) {
-        // Получаем старый HTML
+        // Получаем старый HTML (нормализуем для корректного сравнения)
         const oldHTML = container.innerHTML;
         
         // Если контент идентичен, не обновляем
@@ -1282,20 +1330,22 @@ class SingleChat {
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = newContent;
         
-        // Создаем временный элемент для парсинга старого контента
-        const oldDiv = document.createElement('div');
-        oldDiv.innerHTML = oldHTML;
-        
         // Получаем все дочерние элементы
         const newChildren = Array.from(tempDiv.children);
-        const oldChildren = Array.from(oldDiv.children);
+        const oldChildren = Array.from(container.children);
         
-        // Проверяем, добавились ли новые элементы
+        // Проверяем, добавились ли новые БЛОЧНЫЕ элементы (thoughts, code blocks, etc.)
         if (newChildren.length > oldChildren.length) {
-            // Есть новые элементы - добавляем их с анимацией
+            // Сначала синхронизируем существующие элементы
+            for (let i = 0; i < oldChildren.length; i++) {
+                if (oldChildren[i].outerHTML !== newChildren[i].outerHTML) {
+                    oldChildren[i].outerHTML = newChildren[i].outerHTML;
+                }
+            }
+            
+            // Добавляем новые блочные элементы с анимацией
             for (let i = oldChildren.length; i < newChildren.length; i++) {
                 const newElement = newChildren[i].cloneNode(true);
-                // Устанавливаем начальное состояние для transition
                 newElement.style.opacity = '0';
                 newElement.style.transform = 'translateY(10px)';
                 newElement.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
@@ -1317,37 +1367,9 @@ class SingleChat {
                     }, 500);
                 });
             }
-        } else if (newChildren.length === oldChildren.length) {
-            // Количество элементов не изменилось, проверяем содержимое последнего
-            const lastOldChild = oldChildren[oldChildren.length - 1];
-            const lastNewChild = newChildren[newChildren.length - 1];
-            
-            if (lastOldChild && lastNewChild && lastOldChild.innerHTML !== lastNewChild.innerHTML) {
-                // Удаляем старые обёртки new-text-part, чтобы сравнивать «чистый» HTML
-                const originalOldInner = lastOldChild.innerHTML;
-                const oldInner = originalOldInner.replace(/<span class=\"new-text-part\">([\s\S]*?)<\/span>/g, '$1');
-                const newInner = lastNewChild.innerHTML;
-
-                // Сценарий чистого ДОПОЛНЕНИЯ: новый HTML начинается со старого HTML
-                if (newInner.startsWith(oldInner)) {
-                    const appendedHtml = newInner.slice(oldInner.length);
-                    const targetElement = container.children[oldChildren.length - 1];
-                    if (targetElement) {
-                        // Старый текст без обёрток + новая часть с анимацией
-                        targetElement.innerHTML = `${oldInner}<span class="new-text-part">${appendedHtml}</span>`;
-                    }
-                } else {
-                    // Структура изменилась (например, переразметка жирного текста) — обновляем без частичного диффа
-                    const targetElement = container.children[oldChildren.length - 1];
-                    if (targetElement) {
-                        targetElement.innerHTML = newInner;
-                    } else {
-                        container.innerHTML = newContent;
-                    }
-                }
-            }
         } else {
-            // Элементов стало меньше или структура изменилась - полная замена
+            // Количество элементов такое же или меньше — полная замена контента
+            // Это безопаснее для сложной разметки с **bold** и тегами [CODE], [THOUGHTS]
             container.innerHTML = newContent;
         }
         
@@ -1564,6 +1586,7 @@ class SingleChat {
         // Инициализируем обработчики для кнопок копирования кода
         this.initCodeCopyButtons();
         this.initCodeDownloadButtons();
+        this.initCodeExpandButtons();
         
         // Инициализируем обработчики для сворачивания мыслей (если есть)
         this.initThoughtsToggles();
@@ -1746,6 +1769,7 @@ class SingleChat {
         // Инициализируем обработчики для кнопок копирования кода
         this.initCodeCopyButtons();
         this.initCodeDownloadButtons();
+        this.initCodeExpandButtons();
         
         // Инициализируем обработчики для сворачивания мыслей (если есть)
         this.initThoughtsToggles();
@@ -2057,16 +2081,77 @@ class SingleChat {
     updateSendButtonState() {
         const sendButton = document.getElementById('send-message-btn');
         const inputElement = document.getElementById('message-input');
+        const btnIcon = sendButton?.querySelector('.send-btn-icon');
+        const btnText = sendButton?.querySelector('.send-btn-text');
+        
+        // Проверяем, есть ли активный PID в чате
+        const hasPID = this.currentChatData && this.currentChatData.PID !== null && this.currentChatData.PID !== undefined;
         
         if (sendButton) {
-            const canSend = this.canSendMessage();
-            sendButton.disabled = !canSend;
-            console.log('[SEND_BTN] Обновление состояния кнопки. Можно отправлять:', canSend);
+            if (hasPID) {
+                // Режим остановки ИИ
+                sendButton.disabled = false;
+                sendButton.classList.add('stop-mode');
+                if (btnIcon) btnIcon.textContent = '■';
+                if (btnText) btnText.textContent = 'Прервать';
+                console.log('[SEND_BTN] Режим остановки. PID:', this.currentChatData.PID);
+            } else {
+                // Обычный режим отправки
+                const canSend = this.canSendMessage();
+                sendButton.disabled = !canSend;
+                sendButton.classList.remove('stop-mode');
+                if (btnIcon) btnIcon.textContent = '➤';
+                if (btnText) btnText.textContent = 'Отправить';
+                console.log('[SEND_BTN] Режим отправки. Можно отправлять:', canSend);
+            }
         }
         
         if (inputElement) {
             const canSend = this.canSendMessage();
-            inputElement.disabled = !canSend;
+            inputElement.disabled = hasPID || !canSend;
+        }
+    }
+
+    // Обработка клика по кнопке отправки/остановки
+    handleSendButtonClick() {
+        const hasPID = this.currentChatData && this.currentChatData.PID !== null && this.currentChatData.PID !== undefined;
+        
+        if (hasPID) {
+            this.stopAI();
+        } else {
+            this.sendMessage();
+        }
+    }
+
+    // Остановка процесса ИИ
+    async stopAI() {
+        if (!this.currentChatId) return;
+        
+        const sendButton = document.getElementById('send-message-btn');
+        const btnText = sendButton?.querySelector('.send-btn-text');
+        
+        if (btnText) btnText.textContent = 'Остановка...';
+        if (sendButton) sendButton.disabled = true;
+        
+        try {
+            const response = await fetch(`/api/chats/${this.currentChatId}/stop`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            
+            if (response.ok) {
+                console.log('[STOP] Процесс ИИ остановлен');
+                if (this.currentChatData) {
+                    this.currentChatData.PID = null;
+                }
+            } else {
+                const errorData = await response.json();
+                console.error('[STOP] Ошибка остановки:', errorData.error);
+            }
+        } catch (error) {
+            console.error('[STOP] Ошибка:', error);
+        } finally {
+            this.updateSendButtonState();
         }
     }
 
@@ -2319,6 +2404,45 @@ class SingleChat {
         });
     }
 
+    // Инициализация кнопок разворачивания кода
+    initCodeExpandButtons() {
+        // Находим все кнопки разворачивания, которые еще не инициализированы
+        const expandButtons = document.querySelectorAll('.ai-code-expand-btn:not([data-initialized])');
+        
+        expandButtons.forEach(button => {
+            button.setAttribute('data-initialized', 'true');
+            
+            button.addEventListener('click', (e) => {
+                e.stopPropagation();
+                
+                const codeBlock = button.closest('.ai-code-block');
+                if (!codeBlock) return;
+                
+                const hiddenLines = codeBlock.querySelector('.ai-code-hidden-lines');
+                if (!hiddenLines) return;
+                
+                const isExpanded = button.getAttribute('data-expanded') === 'true';
+                
+                if (isExpanded) {
+                    // Сворачиваем
+                    hiddenLines.style.display = 'none';
+                    button.setAttribute('data-expanded', 'false');
+                    // Восстанавливаем текст кнопки
+                    const totalLines = codeBlock.querySelectorAll('.ai-code-line').length;
+                    const hiddenCount = hiddenLines.querySelectorAll('.ai-code-line').length;
+                    button.textContent = `ещё ${hiddenCount} ${this.getLineWord(hiddenCount)}`;
+                    codeBlock.classList.remove('expanded');
+                } else {
+                    // Разворачиваем
+                    hiddenLines.style.display = 'contents';
+                    button.setAttribute('data-expanded', 'true');
+                    button.textContent = 'свернуть';
+                    codeBlock.classList.add('expanded');
+                }
+            });
+        });
+    }
+
     async sendMessage() {
         if (!this.currentChatId || !this.currentChatData) return;
 
@@ -2506,8 +2630,11 @@ class SingleChat {
 
     // Автоматическое изменение размера textarea
     autoResizeTextarea() {
-        this.style.height = 'auto';
-        this.style.height = (this.scrollHeight > 150 ? 150 : this.scrollHeight) + 'px';
+        const minHeight = 51;
+        const maxHeight = 150;
+        this.style.height = minHeight + 'px';
+        const newHeight = Math.max(minHeight, Math.min(maxHeight, this.scrollHeight));
+        this.style.height = newHeight + 'px';
     }
 
     // Экранирование HTML

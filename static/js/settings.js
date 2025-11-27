@@ -189,6 +189,9 @@ function updateUI() {
         fullscreenToggle.checked = window.appSettings.fullscreen;
     }
     
+    // Тип интерфейса
+    updateInterfaceTypeSelect();
+    
     // Тема
     const themeOptions = document.querySelectorAll('.theme-option');
     themeOptions.forEach(option => {
@@ -200,6 +203,82 @@ function updateUI() {
     
     // Модели
     renderModels();
+}
+
+// Обновление отображения селекта типа интерфейса
+function updateInterfaceTypeSelect() {
+    const select = document.getElementById('interface-type-select');
+    if (!select) return;
+    
+    const interfaceType = window.appSettings.interfaceType || 'synedrion';
+    const valueSpan = select.querySelector('.custom-select-value');
+    const options = select.querySelectorAll('.custom-select-option');
+    
+    // Обновляем текст в триггере
+    const labels = {
+        'classic': 'Классика',
+        'synedrion': 'Synedrion'
+    };
+    if (valueSpan) {
+        valueSpan.textContent = labels[interfaceType] || 'Synedrion';
+    }
+    
+    // Обновляем выбранную опцию
+    options.forEach(option => {
+        option.classList.remove('selected');
+        if (option.dataset.value === interfaceType) {
+            option.classList.add('selected');
+        }
+    });
+}
+
+// Инициализация кастомного селекта
+function initCustomSelect() {
+    const select = document.getElementById('interface-type-select');
+    if (!select) return;
+    
+    const trigger = select.querySelector('.custom-select-trigger');
+    const options = select.querySelectorAll('.custom-select-option');
+    
+    // Открытие/закрытие селекта
+    trigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        select.classList.toggle('open');
+    });
+    
+    // Выбор опции
+    options.forEach(option => {
+        option.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const value = option.dataset.value;
+            await changeInterfaceType(value);
+            select.classList.remove('open');
+        });
+    });
+    
+    // Закрытие при клике вне селекта
+    document.addEventListener('click', () => {
+        select.classList.remove('open');
+    });
+}
+
+// Смена типа интерфейса
+async function changeInterfaceType(type) {
+    window.appSettings.interfaceType = type;
+    
+    const success = await saveSettings();
+    if (success) {
+        updateInterfaceTypeSelect();
+        
+        // Анимация
+        const select = document.getElementById('interface-type-select');
+        if (select) {
+            select.style.transform = 'scale(0.95)';
+            setTimeout(() => {
+                select.style.transform = 'scale(1)';
+            }, 200);
+        }
+    }
 }
 
 // Рендер списка моделей
@@ -297,6 +376,9 @@ function showSuccess(message) {
 // Инициализация
 document.addEventListener('DOMContentLoaded', function() {
     loadSettings();
+    
+    // Инициализируем кастомный селект
+    initCustomSelect();
     
     // Обработчики событий
     setTimeout(() => {

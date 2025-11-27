@@ -69,7 +69,13 @@ def save_settings(settings):
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    settings = load_settings()
+    interface_type = settings.get('interfaceType', 'synedrion')
+    
+    if interface_type == 'synedrion':
+        return render_template('index_synedrion.html')
+    else:
+        return render_template('index.html')
 
 @app.errorhandler(500)
 def internal_server_error(e):
@@ -95,11 +101,23 @@ def handle_exception(e):
 
 @app.route('/single_chat')
 def single_chat():
-    return render_template('single_chat.html')
+    settings = load_settings()
+    interface_type = settings.get('interfaceType', 'synedrion')
+    
+    if interface_type == 'synedrion':
+        return render_template('single_chat_synedrion.html')
+    else:
+        return render_template('single_chat.html')
 
 @app.route('/council')
 def council():
-    return render_template('council.html')
+    settings = load_settings()
+    interface_type = settings.get('interfaceType', 'synedrion')
+    
+    if interface_type == 'synedrion':
+        return render_template('council_synedrion.html')
+    else:
+        return render_template('council.html')
 
 @app.route('/settings')
 def settings_page():
@@ -328,6 +346,38 @@ def delete_chat(chat_id):
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/chats/<chat_id>/stop', methods=['POST'])
+def stop_ai_process(chat_id):
+    """Остановить процесс ИИ для чата"""
+    try:
+        file_path = os.path.join(CHATS_DIR, f"{chat_id}.json")
+        if not os.path.exists(file_path):
+            return jsonify({'error': 'Чат не найден'}), 404
+        
+        with open(file_path, 'r', encoding='utf-8') as f:
+            chat_data = json.load(f)
+        
+        pid = chat_data.get('PID')
+        if pid is None:
+            return jsonify({'success': True, 'message': 'Процесс уже остановлен'})
+        
+        # Завершаем процесс
+        import signal
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except OSError as e:
+            # Процесс уже завершён или не существует
+            pass
+        
+        # Обнуляем PID в файле чата
+        chat_data['PID'] = None
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(chat_data, f, ensure_ascii=False, indent=2)
+        
+        return jsonify({'success': True, 'message': 'Процесс остановлен'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
     
 @app.route('/api/ai/send_message', methods=['POST'])
 def send_ai_message():
@@ -403,9 +453,7 @@ def create_request():
         try:
             # Запускаем скрипт в отдельном процессе
             # subprocess.Popen([sys.executable, 'api_sender_council.pyw'], 
-            subprocess.Popen([sys.executable, 'api_sender.pyw'],                  
-                           stdout=subprocess.PIPE, 
-                           stderr=subprocess.PIPE)
+            subprocess.Popen([sys.executable, 'api_sender.pyw'])
             # Если вы хотите видеть вывод скрипта в консоли, используйте:
             # subprocess.Popen([sys.executable, 'api_sender.py'])
         except FileNotFoundError:
@@ -716,6 +764,37 @@ def delete_group_chat(chat_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/group_chats/<chat_id>/stop', methods=['POST'])
+def stop_group_ai_process(chat_id):
+    """Остановить процесс ИИ для консилиума"""
+    try:
+        file_path = os.path.join(GROUP_CHATS_DIR, f"{chat_id}.json")
+        if not os.path.exists(file_path):
+            return jsonify({'error': 'Консилиум не найден'}), 404
+        
+        with open(file_path, 'r', encoding='utf-8') as f:
+            chat_data = json.load(f)
+        
+        pid = chat_data.get('PID')
+        if pid is None:
+            return jsonify({'success': True, 'message': 'Процесс уже остановлен'})
+        
+        # Завершаем процесс
+        import signal
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except OSError:
+            pass
+        
+        # Обнуляем PID в файле чата
+        chat_data['PID'] = None
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(chat_data, f, ensure_ascii=False, indent=2)
+        
+        return jsonify({'success': True, 'message': 'Процесс остановлен'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/group_ai/send_message', methods=['POST'])
 def send_group_ai_message():
     """Отправка сообщения всем моделям в консилиуме"""
@@ -777,8 +856,8 @@ if __name__ == '__main__':
 
     settings = load_settings()
     if settings.get('fullscreen', False):
-        webview.create_window('Synedrion', 'http://127.0.0.1:1703', width=1200, height=800, fullscreen=True)
+        webview.create_window('Synedrion', 'http://127.0.0.1:1703', width=1300, height=800, fullscreen=True)
     else:
-        webview.create_window('Synedrion', 'http://127.0.0.1:1703', width=1200, height=800, min_size=(600, 850))
+        webview.create_window('Synedrion', 'http://127.0.0.1:1703', width=1300, height=800, min_size=(600, 850))
     
     webview.start()
