@@ -825,7 +825,7 @@ def send_group_ai_message():
             try:
                 subprocess.Popen([
                     sys.executable,
-                    'api_sender.pyw',
+                    'api_sender_council_fit.pyw',
                     file_path,
                     model,
                     system_prompt,

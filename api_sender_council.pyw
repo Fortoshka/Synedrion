@@ -414,6 +414,7 @@ def main():
     try:
         global result
         result = []
+        history_file["PID"] = os.getpid()
         for model in MODELS:
             global history_file
             history_file = load_json(HISTORY_PATH)
@@ -432,7 +433,6 @@ def main():
             })
             save_history(progress=25)
             time.sleep(1)
-            history_file["PID"] = os.getpid()
             logging.info(model)
             try:
                 history = load_history()
@@ -440,7 +440,7 @@ def main():
                 if answer[-1].get("fatal_error", ""):
                     raise
                 elif answer:
-                    time.sleep(0.25)
+                    time.sleep(0.1)
                     if len(result) == 1 and answer[-1].get('content','') == "":
                         answer[-1]['content'] += "*треск сверчков*"
                     logging.info(f"История сохранена.")

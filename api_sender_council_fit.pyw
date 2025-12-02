@@ -32,7 +32,7 @@ def load_json(path: str):
 
 
 API_URL = "https://openrouter.ai/api/v1/chat/completions"
-EXC_INFO = True # Подробное логирование ошибок
+EXC_INFO = False # Подробное логирование ошибок
 
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), "config", "request.json")
 CONFIG = load_json(CONFIG_PATH)
@@ -199,6 +199,7 @@ def send_message_api(history: list, model: str = "", tools_send: int = 0, error_
         response = requests.post(API_URL, headers=headers, json=payload, stream=True)
 
         try:
+            logging.warning(order, result[order])
             response.raise_for_status()
             
             for line in response.iter_lines(8192):
@@ -209,7 +210,6 @@ def send_message_api(history: list, model: str = "", tools_send: int = 0, error_
                     if line_str.startswith(":"):
                         if result[order][0] and error_count == 0 and tools_send == 0 and not result[order][0]["content"] and not result[order][0]["reasoning"]:
                             save_history(progress=80, order=order)
-                            result[order][0]["reasoning"] += " "
                         logging.debug("Игнорируем служебную строку: OPENROUTER PROCESSING")
                         continue 
 
@@ -309,7 +309,7 @@ def send_message_api(history: list, model: str = "", tools_send: int = 0, error_
                                     
         result[order][-1]["reasoning_details"] = [reasoning_details_buffer[k] for k in sorted(reasoning_details_buffer.keys())]
         result[order][-1]["tool_calls"] = [tool_calls_buffer[k] for k in sorted(tool_calls_buffer.keys())]
-        logging.info(f"Ответ от API успешно получен. {result[order][-1]}")
+        logging.info(f"Ответ от API - {order} успешно получен. {result[order][-1]}")
         
         logging.info(f"История сохранена. {save_history(response=result[order], order=order)}")
         
@@ -373,7 +373,7 @@ def send_message_api(history: list, model: str = "", tools_send: int = 0, error_
         if error_count >= 3: 
             result[order][0]["fatal_error"] = True
             result[order][-1]["fatal_error_message"] = error_answer
-            return result
+            return result[order]
         logging.warning(f"Пробуем еще раз так как может быть временная ошибка")
         result_retry = send_message_api(history=history, error_count=(error_count + 1), tools_send=tools_send)
         return result_retry
@@ -382,13 +382,13 @@ def send_message_api(history: list, model: str = "", tools_send: int = 0, error_
         logging.error(f"Неверный формат ответа API: {response.text if 'response' in locals() else 'response не определён'}, ошибка: {ke}", exc_info=EXC_INFO)
         result[order][0]["fatal_error"] = True
         result[order][-1]["fatal_error_message"] = f"Неверный формат ответа API: {ke}"
-        return result
+        return result[order]
 
     except Exception as e:
         logging.error(f"Неожиданная ошибка в основном блоке: {e}", exc_info=EXC_INFO)
         result[order][0]["fatal_error"] = True
         result[order][-1]["fatal_error_message"] = f"Неожиданная ошибка: {e}"
-        return result
+        return result[order]
 
     finally:
         try:
@@ -399,22 +399,14 @@ def send_message_api(history: list, model: str = "", tools_send: int = 0, error_
             logging.info(f"API ключ удалён: {response_del.json()}")
         except Exception as e:
             logging.warning(f"Ошибка при удалении API ключа: {e}")
-        
-        if result[order][0].get("fatal_error") and error_count == 0:
-            error_answer = result[order][-1].get("fatal_error_message", "Произошла ошибка.")
-            history_file["messages"][-(len(MODELS) - order)] = {
-                'id': int(time.time() * 1000),  # Уникальный ID
-                'sender': 'error',
-                'sender_model': model,
-                'text': error_answer,
-                'timestamp': datetime.now().isoformat()
-            }
+    
         
 
 def main():
     global result, history_file
     try:
-        result = {order: [] for order in range(len(MODELS))} 
+        history_file["PID"] = os.getpid()
+        result = [[] for _ in range(len(MODELS))] 
         
         history = load_history()
         
@@ -450,14 +442,16 @@ def main():
                 try:
                     answer = future.result(timeout=20)
                     result[order] = answer
-                    if answer[-1].get("fatal_error"):
-                        raise ValueError("Fatal error модели")
-                    if answer:
-                        if not answer[-1].get('content'):
-                            answer[-1]['content'] = "*треск сверчков*"
-                        logging.info(f"Модель {order} готова")
-                    else:
-                        raise ValueError("Fatal error")
+                    logging.info(f"{order} - {answer}\n{result[order]}")
+                    if result[order][0].get("fatal_error"):
+                        error_answer = result[order][-1].get("fatal_error_message", "Произошла ошибка.")
+                        history_file["messages"][-(len(MODELS) - order)] = {
+                            'id': int(time.time() * 1000),  # Уникальный ID
+                            'sender': 'error',
+                            'sender_model': MODELS[order],
+                            'text': error_answer,
+                            'timestamp': datetime.now().isoformat()
+                        }
                         
                 except TimeoutError:
                     logging.error(f"Timeout модели {order}")
@@ -481,6 +475,12 @@ def main():
         })
         logging.error(f"Критическая ошибка: {e}")
     finally:
+        for use in result:
+            for use_model in use:
+                logging.info(use_model.get("usage"))
+        history_file["PID"] = None
+        with open(HISTORY_PATH, "w", encoding="utf-8") as f:
+            json.dump(history_file, f, ensure_ascii=False, indent=2)
         # Финальное сохранение
         logging.info("api_sender.pyw завершил работу!")
 

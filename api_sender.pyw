@@ -163,6 +163,7 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
         "messages": history,
         "temperature": 1.1,
         "usage": {"include": True},
+        "stop": [],
         "stream": True,
     }
     if MODEL in TOOL_SUPPORTED_MODELS:
@@ -208,7 +209,6 @@ def send_message_api(history: list, tools_send: int = 0, error_count: int = 0):
                         if result[0] and error_count == 0 and tools_send == 0 and not result[0]["content"] and not result[0]["reasoning"]:
                             save_history(progress=80)
                             start_time_reasoning = time.time()
-                            result[0]["reasoning"] += " "
                         logging.debug("Игнорируем служебную строку: OPENROUTER PROCESSING")
                         continue 
 
